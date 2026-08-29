@@ -1,0 +1,222 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Perfume Note — Luxury Perfume E-commerce
+ */
+
+@theme inline {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+
+  --font-sans: "Inter", "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", "DM Serif Text", ui-serif, Georgia, serif;
+  --font-arabic: "Cairo", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-gold: var(--gold);
+}
+
+:root {
+  --radius: 0px;
+
+  /* === Warm Ivory / Cream Luxury Palette === */
+  --background: #F8F4EF;       /* Warm ivory */
+  --foreground: #1A1614;       /* Deep charcoal */
+  --card: #FDFAF6;             /* Off-white cream */
+  --card-foreground: #1A1614;
+  --popover: #FDFAF6;
+  --popover-foreground: #1A1614;
+  --primary: #8B6B4A;          /* Muted warm brown / gold */
+  --primary-foreground: #FDFAF6;
+  --secondary: #EDE8E1;        /* Soft sand/beige */
+  --secondary-foreground: #1A1614;
+  --muted: #E8E2D9;
+  --muted-foreground: #6B5E52;
+  --accent: #D4B896;           /* Warm tan */
+  --accent-foreground: #1A1614;
+  --destructive: #C0392B;
+  --destructive-foreground: #FDFAF6;
+  --border: #DDD6CC;
+  --input: #DDD6CC;
+  --ring: #8B6B4A;
+  --gold: #8B6B4A;
+}
+
+.dark {
+  --background: #151210;
+  --foreground: #F5EFE8;
+  --card: #1E1916;
+  --card-foreground: #F5EFE8;
+  --popover: #1E1916;
+  --popover-foreground: #F5EFE8;
+  --primary: #C4A882;
+  --primary-foreground: #151210;
+  --secondary: #2A2320;
+  --secondary-foreground: #F5EFE8;
+  --muted: #2A2320;
+  --muted-foreground: #9E8E80;
+  --accent: #2A2320;
+  --accent-foreground: #F5EFE8;
+  --destructive: #C0392B;
+  --destructive-foreground: #FDFAF6;
+  --border: #2E2621;
+  --input: #2E2621;
+  --ring: #C4A882;
+  --gold: #C4A882;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html[dir="rtl"] body {
+    direction: rtl;
+    text-align: right;
+  }
+
+  html.font-arabic body {
+    font-family: var(--font-arabic);
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    line-height: 1.15;
+  }
+
+  h4, h5, h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+  }
+
+  /* Lenis CSS classes kept for compatibility */
+  html.lenis { height: auto; }
+  .lenis.lenis-smooth { scroll-behavior: auto !important; }
+  .lenis.lenis-stopped { overflow: hidden; }
+}
+
+/* ── Typography utilities ─────────────────────── */
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+/* ── Clean hover underline ────────────────────── */
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background-color: currentColor;
+  transition: width 0.3s ease;
+}
+.link-underline:hover::after {
+  width: 100%;
+}
+
+/* ── Product image zoom ───────────────────────── */
+.img-zoom {
+  overflow: hidden;
+}
+.img-zoom img {
+  transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.img-zoom:hover img {
+  transform: scale(1.04);
+}
+
+/* ── Fade in animation ────────────────────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s ease forwards;
+}
+
+.animate-fade-up-delay-1 {
+  animation: fade-up 0.7s 0.1s ease both;
+}
+
+.animate-fade-up-delay-2 {
+  animation: fade-up 0.7s 0.2s ease both;
+}
+
+.animate-fade-up-delay-3 {
+  animation: fade-up 0.7s 0.3s ease both;
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+/* ── Scroll indicator ─────────────────────────── */
+@keyframes scroll-down {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+.animate-scroll-indicator {
+  animation: scroll-down 2s ease-in-out infinite;
+}
+
+/* ── No scrollbar ─────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
