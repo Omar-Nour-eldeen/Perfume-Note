@@ -47,6 +47,8 @@ function AccountPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editGovernorate, setEditGovernorate] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -170,6 +172,8 @@ function AccountPage() {
     if (!isEditing && profile) {
       setEditName(profile.name || "");
       setEditPhone(profile.phone || "");
+      setEditAddress(profile.address || "");
+      setEditGovernorate(profile.governorate || "");
     }
     setIsEditing(!isEditing);
   };
@@ -192,7 +196,7 @@ function AccountPage() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ name: editName, phone: editPhone })
+        .update({ name: editName, phone: editPhone, address: editAddress, governorate: editGovernorate })
         .eq("id", user.id);
 
       if (error) throw error;
@@ -575,6 +579,22 @@ function AccountPage() {
                   />
                 ) : (
                   <span dir="ltr" className="inline-block">{profile.phone || (ar ? "غير محدد" : "Not specified")}</span>
+                )}
+              </div>
+              <div>
+                <span className="font-bold block text-muted-foreground mb-1">{ar ? "المحافظة" : "Governorate"}</span>
+                {isEditing ? (
+                  <Input value={editGovernorate} onChange={(e) => setEditGovernorate(e.target.value)} className="h-8 text-sm" placeholder={ar ? "المحافظة" : "Governorate"} />
+                ) : (
+                  <span>{profile.governorate || (ar ? "غير محدد" : "Not specified")}</span>
+                )}
+              </div>
+              <div>
+                <span className="font-bold block text-muted-foreground mb-1">{ar ? "العنوان" : "Address"}</span>
+                {isEditing ? (
+                  <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="h-8 text-sm" placeholder={ar ? "العنوان" : "Address"} />
+                ) : (
+                  <span>{profile.address || (ar ? "غير محدد" : "Not specified")}</span>
                 )}
               </div>
               <div className="pt-2 border-t border-border mt-4">

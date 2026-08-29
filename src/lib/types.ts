@@ -3,6 +3,8 @@ export interface Profile {
   email: string;
   name: string | null;
   phone: string | null;
+  address: string | null;
+  governorate: string | null;
   avatar_url: string | null;
   balance: number;
   is_admin: boolean;

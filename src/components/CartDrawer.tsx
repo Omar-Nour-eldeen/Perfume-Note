@@ -46,8 +46,22 @@ export function CartDrawer() {
     if (profile) {
       if (!name) setName(profile.name || "");
       if (!phone) setPhone(profile.phone || "");
+      if (!address && (profile.address || profile.governorate)) {
+        const addrParts = [];
+        if (profile.governorate) addrParts.push(profile.governorate);
+        if (profile.address) addrParts.push(profile.address);
+        setAddress(addrParts.join(" ، "));
+      }
+      if (profile.governorate && shippingZones.length > 0) {
+        const matchingZone = shippingZones.find(
+          z => z.name_ar === profile.governorate || z.name_en === profile.governorate
+        );
+        if (matchingZone && (!selectedZone || selectedZone === shippingZones[0])) {
+          setSelectedZone(matchingZone);
+        }
+      }
     }
-  }, [profile, isOpen]);
+  }, [profile, isOpen, shippingZones]);
 
   // ─── verify helper (uses getState to always have fresh references) ───
   const verifyCartItems = async () => {
