@@ -163,6 +163,7 @@ create table public.orders (
   subtotal numeric(10, 2) not null,
   shipping_cost numeric(10, 2) not null,
   discount numeric(10, 2) not null default 0.00,
+  wallet_used numeric(10, 2) not null default 0.00,
   total numeric(10, 2) not null,
   customer_name text not null,
   phone text not null,
@@ -284,6 +285,73 @@ create policy "Only system/admin can create transactions" on public.wallet_trans
   for insert with check (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true));
 
 
+-- RPC for checkout with wallet securely
+create or replace function public.checkout_with_wallet(
+  p_user_id uuid,
+  p_subtotal numeric,
+  p_shipping_cost numeric,
+  p_discount numeric,
+  p_wallet_used numeric,
+  p_total numeric,
+  p_customer_name text,
+  p_phone text,
+  p_address text,
+  p_governorate text,
+  p_discount_code text,
+  p_payment_method text,
+  p_items jsonb
+) returns uuid as $$
+declare
+  v_order_id uuid;
+  v_current_balance numeric;
+  v_item jsonb;
+begin
+  -- 1. Check balance if wallet_used > 0
+  if p_wallet_used > 0 then
+    select balance into v_current_balance from public.profiles where id = p_user_id for update;
+    -- Clamp wallet_used to actual balance (handles floating-point edge cases)
+    if round(v_current_balance::numeric, 2) < round(p_wallet_used::numeric, 2) then
+      raise exception 'Insufficient wallet balance (available: %, requested: %)', round(v_current_balance::numeric, 2), round(p_wallet_used::numeric, 2);
+    end if;
+  end if;
+
+  -- 2. Insert order
+  insert into public.orders (
+    user_id, status, subtotal, shipping_cost, discount, wallet_used, total,
+    customer_name, phone, address, governorate, discount_code, payment_method
+  ) values (
+    p_user_id, 'pending', p_subtotal, p_shipping_cost, p_discount, p_wallet_used, p_total,
+    p_customer_name, p_phone, p_address, p_governorate, p_discount_code, p_payment_method
+  ) returning id into v_order_id;
+
+  -- 3. Insert order items
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    insert into public.order_items (
+      order_id, product_id, title, price, quantity
+    ) values (
+      v_order_id,
+      (v_item->>'product_id')::uuid,
+      v_item->>'title',
+      (v_item->>'price')::numeric,
+      (v_item->>'quantity')::integer
+    );
+  end loop;
+
+  -- 4. Deduct from wallet if needed
+  if p_wallet_used > 0 then
+    insert into public.wallet_transactions (
+      user_id, amount, type, description
+    ) values (
+      p_user_id, -p_wallet_used, 'purchase', 'Order #' || substr(v_order_id::text, 1, 8)
+    );
+  end if;
+
+  return v_order_id;
+end;
+$$ language plpgsql security definer;
+
+
 -- Trigger to adjust profile balance automatically when wallet transaction is inserted
 create or replace function public.handle_wallet_transaction()
 returns trigger as $$
@@ -298,6 +366,25 @@ $$ language plpgsql security definer;
 create trigger on_wallet_transaction_inserted
   after insert on public.wallet_transactions
   for each row execute procedure public.handle_wallet_transaction();
+
+-- Trigger to refund wallet if order is cancelled
+create or replace function public.handle_order_cancellation_refund()
+returns trigger as $$
+begin
+  if old.status != 'cancelled' and new.status = 'cancelled' and new.wallet_used > 0 and new.user_id is not null then
+    insert into public.wallet_transactions (
+      user_id, amount, type, description
+    ) values (
+      new.user_id, new.wallet_used, 'refund', 'Refund for cancelled order #' || substr(new.id::text, 1, 8)
+    );
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_order_cancelled_refund
+  after update on public.orders
+  for each row execute procedure public.handle_order_cancellation_refund();
 
 -- REVIEWS
 create table public.reviews (

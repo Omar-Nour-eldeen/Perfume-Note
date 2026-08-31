@@ -22,7 +22,7 @@ import { Link } from "@tanstack/react-router";
 export function CartDrawer() {
   const { language } = useI18n();
   const ar = language === "ar";
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const { items, isLoading, updateQuantity, removeItem, clearCart } = useCartStore();
 
@@ -37,10 +37,25 @@ export function CartDrawer() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useWallet, setUseWallet] = useState(false);
 
   useEffect(() => {
     fetchShippingZones();
   }, []);
+
+  // Real-time: auto-refresh wallet balance when profile changes in DB
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`profile_balance_${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        () => { refreshProfile(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
 
   useEffect(() => {
     if (profile) {
@@ -178,7 +193,11 @@ export function CartDrawer() {
   }
 
   const shippingCost = selectedZone ? Number(selectedZone.cost) : 0;
-  const total = Math.max(0, subtotal - discountAmount + shippingCost);
+  const originalTotal = Math.max(0, subtotal - discountAmount + shippingCost);
+
+  const walletBalance = profile?.balance ? Math.round(Number(profile.balance) * 100) / 100 : 0;
+  const walletApplied = useWallet && walletBalance > 0 ? Math.round(Math.min(walletBalance, originalTotal) * 100) / 100 : 0;
+  const finalTotal = Math.round((originalTotal - walletApplied) * 100) / 100;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -246,39 +265,87 @@ export function CartDrawer() {
 
     setIsSubmitting(true);
     try {
-      // 1. Create order record
-      const { data: order, error: oErr } = await supabase
-        .from("orders")
-        .insert({
-          user_id: user?.id || null,
-          status: "pending",
-          subtotal,
-          shipping_cost: shippingCost,
-          discount: discountAmount,
-          total,
-          customer_name: name,
-          phone,
-          address,
-          governorate: ar ? selectedZone.name_ar : selectedZone.name_en,
-          discount_code: activeCoupon?.code || null,
-          payment_method: "Cash on Delivery",
-        })
-        .select()
-        .single();
+      let orderId = null;
 
-      if (oErr) throw oErr;
+      if (walletApplied > 0 && user?.id) {
+        // Use RPC if wallet is applied
+        const orderItemsPayload = items.map((item) => ({
+          product_id: item.product.id,
+          title: ar ? item.product.title_ar : item.product.title_en,
+          price: item.product.price,
+          quantity: item.quantity,
+        }));
 
-      // 2. Create order items records
-      const orderItemsPayload = items.map((item) => ({
-        order_id: order.id,
-        product_id: item.product.id,
-        title: ar ? item.product.title_ar : item.product.title_en,
-        price: item.product.price,
-        quantity: item.quantity,
-      }));
+        const { data, error: rpcErr } = await supabase.rpc("checkout_with_wallet", {
+          p_user_id: user.id,
+          p_subtotal: subtotal,
+          p_shipping_cost: shippingCost,
+          p_discount: discountAmount,
+          p_wallet_used: walletApplied,
+          p_total: finalTotal,
+          p_customer_name: name,
+          p_phone: phone,
+          p_address: address,
+          p_governorate: ar ? selectedZone.name_ar : selectedZone.name_en,
+          p_discount_code: activeCoupon?.code || null,
+          p_payment_method: "Cash on Delivery",
+          p_items: orderItemsPayload
+        });
 
-      const { error: iErr } = await supabase.from("order_items").insert(orderItemsPayload);
-      if (iErr) throw iErr;
+        if (rpcErr) throw rpcErr;
+        orderId = data;
+      } else {
+        // Standard insert
+        const { data: order, error: oErr } = await supabase
+          .from("orders")
+          .insert({
+            user_id: user?.id || null,
+            status: "pending",
+            subtotal,
+            shipping_cost: shippingCost,
+            discount: discountAmount,
+            wallet_used: 0,
+            total: finalTotal,
+            customer_name: name,
+            phone,
+            address,
+            governorate: ar ? selectedZone.name_ar : selectedZone.name_en,
+            discount_code: activeCoupon?.code || null,
+            payment_method: "Cash on Delivery",
+          })
+          .select()
+          .single();
+
+        if (oErr) throw oErr;
+        orderId = order.id;
+
+        const orderItemsPayload = items.map((item) => ({
+          order_id: orderId,
+          product_id: item.product.id,
+          title: ar ? item.product.title_ar : item.product.title_en,
+          price: item.product.price,
+          quantity: item.quantity,
+        }));
+
+        const { error: iErr } = await supabase.from("order_items").insert(orderItemsPayload);
+        if (iErr) throw iErr;
+      }
+
+
+
+      // Setup notification messages
+      let adminBodyAr = `تلقيت طلباً جديداً من ${name}.`;
+      let adminBodyEn = `You received a new order from ${name}.`;
+      let userBodyAr = "تم استلام طلبك بنجاح وجاري تجهيزه.";
+      let userBodyEn = "Your order has been received successfully and is being processed.";
+
+      if (walletApplied > 0) {
+        adminBodyAr += `\nالإجمالي: ${originalTotal.toFixed(2)} ج.م (سيتم خصم ${walletApplied.toFixed(2)} من المحفظة، المطلوب عند الاستلام: ${finalTotal.toFixed(2)})`;
+        adminBodyEn += `\nTotal: ${originalTotal.toFixed(2)} EGP (${walletApplied.toFixed(2)} from wallet, Cash on delivery: ${finalTotal.toFixed(2)})`;
+        
+        userBodyAr += `\nسيتم خصم ${walletApplied.toFixed(2)} ج.م من محفظتك. المبلغ المطلوب دفعه عند الاستلام هو ${finalTotal.toFixed(2)} ج.م.`;
+        userBodyEn += `\n${walletApplied.toFixed(2)} EGP will be deducted from your wallet. Amount due on delivery is ${finalTotal.toFixed(2)} EGP.`;
+      }
 
       // Notify admin
       await createNotification({
@@ -286,8 +353,8 @@ export function CartDrawer() {
         type: "new_order",
         title_ar: "طلب جديد",
         title_en: "New Order",
-        body_ar: `تلقيت طلباً جديداً من ${name}.`,
-        body_en: `You received a new order from ${name}.`,
+        body_ar: adminBodyAr,
+        body_en: adminBodyEn,
         link: "/admin/orders",
       });
 
@@ -298,8 +365,8 @@ export function CartDrawer() {
           type: "order_update",
           title_ar: "تم تأكيد طلبك",
           title_en: "Order Confirmed",
-          body_ar: "تم استلام طلبك بنجاح وجاري تجهيزه.",
-          body_en: "Your order has been received successfully and is being processed.",
+          body_ar: userBodyAr,
+          body_en: userBodyEn,
           link: "/account",
         });
       }
@@ -307,6 +374,8 @@ export function CartDrawer() {
       toast.success(ar ? "تم تسجيل طلبك بنجاح!" : "Order placed successfully!");
       clearCart();
       setIsOpen(false);
+      // Refresh wallet balance immediately
+      if (walletApplied > 0) await refreshProfile();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -517,6 +586,21 @@ export function CartDrawer() {
                 className="w-full text-xs rounded-lg border border-border bg-card px-3 py-2.5 text-foreground outline-none"
               />
 
+              {profile && walletBalance > 0 && (
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="useWallet"
+                    checked={useWallet}
+                    onChange={(e) => setUseWallet(e.target.checked)}
+                    className="w-4 h-4 rounded text-primary border-border focus:ring-primary focus:ring-offset-background bg-card"
+                  />
+                  <label htmlFor="useWallet" className="text-sm font-semibold text-foreground cursor-pointer select-none">
+                    {ar ? `استخدام رصيد المحفظة (${walletBalance.toFixed(2)} ج.م)` : `Use wallet balance (${walletBalance.toFixed(2)} EGP)`}
+                  </label>
+                </div>
+              )}
+
               {/* Order total logs summary */}
               <div className="pt-4 space-y-2 text-xs border-t border-dashed border-border/80">
                 <div className="flex justify-between text-muted-foreground">
@@ -533,9 +617,15 @@ export function CartDrawer() {
                   <span>{ar ? "تكلفة الشحن" : "Shipping Cost"}</span>
                   <span>{shippingCost.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
                 </div>
+                {walletApplied > 0 && (
+                  <div className="flex justify-between text-blue-600 font-bold">
+                    <span>{ar ? "خصم من المحفظة" : "Wallet Applied"}</span>
+                    <span>-{walletApplied.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-black text-sm text-foreground pt-1">
                   <span>{ar ? "الإجمالي النهائي" : "Total Cost"}</span>
-                  <span>{total.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                  <span>{finalTotal.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
                 </div>
               </div>
 
