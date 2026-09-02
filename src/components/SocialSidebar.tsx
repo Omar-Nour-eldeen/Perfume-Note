@@ -64,7 +64,7 @@ export function SocialSidebar() {
   };
 
   return (
-    <div className="fixed bottom-8 right-4 z-50 flex flex-col items-center gap-2.5">
+    <div className="fixed bottom-[64px] right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col items-center gap-2.5">
       {/* Social links — slide in when open */}
       <div
         className={`flex flex-col items-center gap-2.5 overflow-hidden transition-all duration-500 ease-in-out ${
@@ -78,7 +78,7 @@ export function SocialSidebar() {
             target="_blank"
             rel="noopener noreferrer"
             title={link.name}
-            className="flex items-center justify-center w-11 h-11 rounded-full shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl"
+            className="flex items-center justify-center w-10 h-10 rounded-full shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl"
             style={{
               background: link.bg,
               transitionDelay: open ? `${i * 40}ms` : "0ms",
@@ -92,15 +92,14 @@ export function SocialSidebar() {
         <button
           onClick={handleShare}
           title={copied ? "تم النسخ!" : "مشاركة"}
-          className="flex items-center justify-center w-11 h-11 rounded-full shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl"
-          style={{ background: "#6B4F2E" }}
+          className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl"
         >
           {copied ? (
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
+            <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
               <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
             </svg>
           ) : (
-            <Share2 className="w-5 h-5 text-white" />
+            <Share2 className="w-4 h-4 text-white" />
           )}
         </button>
       </div>
@@ -108,15 +107,14 @@ export function SocialSidebar() {
       {/* Toggle button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center w-12 h-12 rounded-full shadow-xl transition-all duration-300 hover:scale-110"
-        style={{ background: open ? "#374151" : "#6B4F2E" }}
+        className="relative h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 transition-all duration-300 transform hover:scale-105 flex items-center justify-center border-0 outline-none"
         title={open ? "إغلاق" : "تواصل معنا"}
       >
         {open ? (
-          <X className="w-5 h-5 text-white" />
+          <X className="h-5 w-5" />
         ) : (
-          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
           </svg>
         )}
       </button>

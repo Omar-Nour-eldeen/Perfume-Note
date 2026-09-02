@@ -182,28 +182,28 @@ function AdminOrders() {
         .eq("id", orderId);
 
       if (error) throw error;
-      
+
       const order = orders.find(o => o.id === orderId);
 
       toast.success(ar ? "تم تحديث حالة الطلب" : "Order status updated");
-      
+
       // Log activity
       await logActivity(
-        orderId, 
-        order?.user_id || null, 
-        "STATUS_CHANGED", 
-        `تم تغيير حالة الطلب إلى: ${newStatus}`, 
+        orderId,
+        order?.user_id || null,
+        "STATUS_CHANGED",
+        `تم تغيير حالة الطلب إلى: ${newStatus}`,
         `Order status changed to: ${newStatus}`
       );
-      
+
       // Notify customer
       if (order?.user_id) {
         const statusLabels: Record<string, { ar: string; en: string }> = {
-          pending:    { ar: "قيد الانتظار",  en: "Pending" },
+          pending: { ar: "قيد الانتظار", en: "Pending" },
           processing: { ar: "جاري التجهيز", en: "Processing" },
-          shipped:    { ar: "تم الشحن",      en: "Shipped" },
-          delivered:  { ar: "تم التوصيل",   en: "Delivered" },
-          cancelled:  { ar: "ملغي",          en: "Cancelled" },
+          shipped: { ar: "تم الشحن", en: "Shipped" },
+          delivered: { ar: "تم التوصيل", en: "Delivered" },
+          cancelled: { ar: "ملغي", en: "Cancelled" },
         };
         const labelAr = statusLabels[newStatus]?.ar ?? newStatus;
         const labelEn = statusLabels[newStatus]?.en ?? newStatus;
@@ -273,7 +273,7 @@ function AdminOrders() {
       let action = "RETURN_UPDATED";
       let descAr = `تحديث طلب الاسترجاع إلى: ${newStatus}`;
       let descEn = `Return request updated to: ${newStatus}`;
-      
+
       if (newStatus === "approved") {
         action = "RETURN_APPROVED";
         descAr = "تمت الموافقة على طلب الاسترجاع";
@@ -335,24 +335,24 @@ function AdminOrders() {
         // --- UPDATE STOCK ---
         const receivedItems = (updatedRet as any)?.received_items || ret.received_items || ret.returned_items || [];
         for (const item of receivedItems) {
-           if (item.quantity > 0) {
-             // We need product_id. The item.item_id is the order_item id.
-             // We can find the product_id from orderItemsMap, or we can fetch it.
-             const oiData = orderItemsMap[ret.order_id]?.find(oi => oi.id === item.item_id);
-             const productId = oiData?.product_id;
-             
-             if (productId) {
-               const { data: pData } = await supabase.from("products").select("stock").eq("id", productId).single();
-               if (pData) {
-                 await supabase.from("products").update({ stock: pData.stock + item.quantity }).eq("id", productId);
-               }
-             }
-           }
+          if (item.quantity > 0) {
+            // We need product_id. The item.item_id is the order_item id.
+            // We can find the product_id from orderItemsMap, or we can fetch it.
+            const oiData = orderItemsMap[ret.order_id]?.find(oi => oi.id === item.item_id);
+            const productId = oiData?.product_id;
+
+            if (productId) {
+              const { data: pData } = await supabase.from("products").select("stock").eq("id", productId).single();
+              if (pData) {
+                await supabase.from("products").update({ stock: pData.stock + item.quantity }).eq("id", productId);
+              }
+            }
+          }
         }
       }
 
       toast.success(ar ? "تم تحديث حالة طلب الاسترجاع بنجاح" : "Return status updated successfully");
-      
+
       // Notify customer
       if (newStatus !== "pending") {
         let notifTitleAr = "تحديث طلب الاسترجاع";
@@ -420,8 +420,8 @@ function AdminOrders() {
 
       const { error } = await supabase
         .from("returns")
-        .update({ 
-          status: "received", 
+        .update({
+          status: "received",
           received_items: receivedItemsArr,
           refund_amount: newRefundAmount
         })
@@ -430,10 +430,10 @@ function AdminOrders() {
       if (error) throw error;
 
       await logActivity(
-        selectedReturnToReceive.order_id, 
-        selectedReturnToReceive.user_id, 
-        "RETURN_RECEIVED", 
-        "تم استلام المرتجع وتحديد الكميات", 
+        selectedReturnToReceive.order_id,
+        selectedReturnToReceive.user_id,
+        "RETURN_RECEIVED",
+        "تم استلام المرتجع وتحديد الكميات",
         "Return received and quantities verified"
       );
 
@@ -493,7 +493,7 @@ function AdminOrders() {
 
       const { error } = await supabase.from("chat_messages").insert(payload);
       if (error) throw error;
-      
+
       // Also send a notification about the new message
       await createNotification({
         user_id: selectedUserId,
@@ -537,17 +537,15 @@ function AdminOrders() {
           <div className="flex gap-2 border-b border-border">
             <button
               onClick={() => setActiveTab("orders")}
-              className={`pb-3 px-4 text-sm font-bold border-b-2 transition ${
-                activeTab === "orders" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-              }`}
+              className={`pb-3 px-4 text-sm font-bold border-b-2 transition ${activeTab === "orders" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+                }`}
             >
               {ar ? "طلبات العملاء" : "Customer Orders"}
             </button>
             <button
               onClick={() => setActiveTab("returns")}
-              className={`pb-3 px-4 text-sm font-bold border-b-2 transition ${
-                activeTab === "returns" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-              }`}
+              className={`pb-3 px-4 text-sm font-bold border-b-2 transition ${activeTab === "returns" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+                }`}
             >
               {ar ? "طلبات الاسترجاع" : "Return Requests"}
             </button>
@@ -557,7 +555,131 @@ function AdminOrders() {
             <span className="text-muted-foreground">{ar ? "جاري التحميل..." : "Loading..."}</span>
           ) : activeTab === "orders" ? (
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-start border-collapse">
+              {/* ── MOBILE: Card layout ── */}
+              <div className="md:hidden divide-y divide-border">
+                {orders.length === 0 ? (
+                  <p className="p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد طلبات بعد" : "No orders yet"}</p>
+                ) : orders.map((order) => {
+                  const items = orderItemsMap[order.id] || [];
+                  return (
+                    <div key={order.id} className="p-4 space-y-3">
+                      {/* Header row: name + status badge */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-foreground text-sm">{order.customer_name}</p>
+                          {order.user_id && orderEmailsMap[order.user_id] && (
+                            <p className="text-xs text-muted-foreground">{orderEmailsMap[order.user_id]}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">{order.phone}</p>
+                        </div>
+                        <div className="shrink-0">
+                          {order.status === "cancelled" ? (
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">{ar ? "ملغي" : "Cancelled"}</span>
+                          ) : order.status === "delivered" ? (
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">{ar ? "تم التوصيل" : "Delivered"}</span>
+                          ) : order.status === "returned" ? (
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">{ar ? "مُرتجع" : "Returned"}</span>
+                          ) : order.status === "shipped" ? (
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">{ar ? "تم الشحن" : "Shipped"}</span>
+                          ) : order.status === "processing" ? (
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">{ar ? "جاري التجهيز" : "Processing"}</span>
+                          ) : (
+                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">{ar ? "قيد الانتظار" : "Pending"}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Address */}
+                      <p className="text-xs text-muted-foreground">{order.address}، {order.governorate}</p>
+
+                      {/* Items */}
+                      {items.length > 0 && (
+                        <ul className="space-y-0.5 border-t border-border/40 pt-2">
+                          {items.map((item) => (
+                            <li key={item.id} className="text-xs text-foreground flex justify-between">
+                              <span><span className="font-semibold">{item.title}</span> × {item.quantity}</span>
+                              <span className="text-muted-foreground">{(item.price * item.quantity).toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {/* Total + payment */}
+                      <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                        <span className="text-xs text-muted-foreground uppercase">{order.payment_method}</span>
+                        <span className="font-black text-primary text-sm">{order.total.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                      </div>
+
+                      {/* Date */}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(order.created_at).toLocaleDateString(ar ? "ar-EG" : "en-US", { year: "numeric", month: "long", day: "numeric" })}
+                      </p>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2 border-t border-border/40 pt-2">
+                        {order.status !== "cancelled" && order.status !== "delivered" && order.status !== "returned" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 text-[10px] px-3 font-semibold flex-1"
+                              onClick={() => {
+                                const nextStatus =
+                                  order.status === "pending" ? "processing" :
+                                    order.status === "processing" ? "shipped" : "delivered";
+                                handleStatusChange(order.id, nextStatus);
+                              }}
+                            >
+                              {order.status === "pending" ? (ar ? "تجهيز" : "Process") :
+                                order.status === "processing" ? (ar ? "شحن" : "Ship") :
+                                  (ar ? "توصيل" : "Deliver")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 text-[10px] px-3 flex-1"
+                              onClick={() => handleStatusChange(order.id, "cancelled")}
+                            >
+                              {ar ? "إلغاء" : "Cancel"}
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-7 text-[10px] px-3 flex items-center gap-1"
+                          onClick={() => { setSelectedInvoiceOrder(order); setInvoiceModalOpen(true); }}
+                        >
+                          <ReceiptText className="w-3 h-3" />
+                          {ar ? "فاتورة" : "Invoice"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 text-[10px] px-3"
+                          onClick={() => openActivityLog(order.id)}
+                        >
+                          {ar ? "النشاطات" : "Log"}
+                        </Button>
+                        {order.user_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px] px-3 flex items-center gap-1"
+                            onClick={() => openMessageModal(order.user_id!)}
+                          >
+                            <MessageSquare className="w-3 h-3" />
+                            {ar ? "مراسلة" : "Msg"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── DESKTOP: Table layout ── */}
+              <table className="hidden md:table w-full min-w-[980px] text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
                     <th className="p-4 text-start">{ar ? "العميل" : "Customer"}</th>
@@ -601,7 +723,7 @@ function AdminOrders() {
                         <td className="p-4 text-muted-foreground">
                           {new Date(order.created_at).toLocaleDateString(ar ? "ar-EG" : "en-US", { year: "numeric", month: "long", day: "numeric" })}
                         </td>
-                        <td className="p-4 font-black text-primary min-w-[170px]">
+                        <td className="p-4 font-black text-primary">
                           <div>{order.total.toFixed(2)} {ar ? "ج.م" : "EGP"}</div>
                           <div className="text-[11px] font-normal text-muted-foreground space-y-0.5 mt-1.5 border-t border-border/40 pt-1">
                             <div className="flex justify-between gap-2">
@@ -647,27 +769,27 @@ function AdminOrders() {
                               {ar ? "مُرتجع" : "Returned"}
                             </span>
                           ) : (
-                            <div className="flex flex-col gap-1.5 min-w-[140px]">
+                            <div className="flex flex-col gap-1.5">
                               <div className="flex gap-1">
-                                <Button 
-                                  size="sm" 
-                                  variant="secondary" 
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
                                   className="h-7 text-[10px] px-2 flex-1 font-semibold"
                                   onClick={() => {
-                                    const nextStatus = 
-                                      order.status === "pending" ? "processing" : 
-                                      order.status === "processing" ? "shipped" : 
-                                      "delivered";
+                                    const nextStatus =
+                                      order.status === "pending" ? "processing" :
+                                        order.status === "processing" ? "shipped" :
+                                          "delivered";
                                     handleStatusChange(order.id, nextStatus);
                                   }}
                                 >
-                                  {order.status === "pending" ? (ar ? "تجهيز الطلب" : "Process") : 
-                                   order.status === "processing" ? (ar ? "شحن الطلب" : "Ship") : 
-                                   (ar ? "توصيل الطلب" : "Deliver")}
+                                  {order.status === "pending" ? (ar ? "تجهيز الطلب" : "Process") :
+                                    order.status === "processing" ? (ar ? "شحن الطلب" : "Ship") :
+                                      (ar ? "توصيل الطلب" : "Deliver")}
                                 </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="destructive" 
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
                                   className="h-7 text-[10px] px-2 flex-1 font-semibold"
                                   onClick={() => handleStatusChange(order.id, "cancelled")}
                                 >
@@ -679,9 +801,9 @@ function AdminOrders() {
                         </td>
                         <td className="p-4 text-start">
                           <div className="flex flex-col gap-2">
-                            <Button 
-                              variant="default" 
-                              size="sm" 
+                            <Button
+                              variant="default"
+                              size="sm"
                               className="text-xs h-7 flex items-center gap-1.5"
                               onClick={() => {
                                 setSelectedInvoiceOrder(order);
@@ -691,9 +813,9 @@ function AdminOrders() {
                               <ReceiptText className="w-3 h-3" />
                               {ar ? "الفاتورة" : "Invoice"}
                             </Button>
-                            <Button 
-                              variant="secondary" 
-                              size="sm" 
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               className="text-xs h-7"
                               onClick={() => openActivityLog(order.id)}
                             >
@@ -720,7 +842,127 @@ function AdminOrders() {
             </div>
           ) : (
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-start border-collapse">
+              {/* ── MOBILE: Card layout ── */}
+              <div className="md:hidden divide-y divide-border">
+                {returns.length === 0 ? (
+                  <p className="p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد طلبات إرجاع" : "No return requests"}</p>
+                ) : returns.map((ret: any) => {
+                  const retItems = orderItemsMap[ret.order_id] || [];
+                  const displayItems = ret.returned_items && ret.returned_items.length > 0 ? ret.returned_items : retItems;
+                  const statusMap: Record<string, string> = {
+                    pending: ar ? "قيد المراجعة" : "Pending",
+                    approved: ar ? "تمت الموافقة" : "Approved",
+                    received: ar ? "تم الاستلام" : "Received",
+                    completed: ar ? "مكتمل" : "Completed",
+                    rejected: ar ? "مرفوض" : "Rejected",
+                    cancelled: ar ? "ملغى" : "Cancelled",
+                    reopened: ar ? "مُعاد فتحه" : "Reopened",
+                  };
+                  const statusColor: Record<string, string> = {
+                    completed: "bg-green-100 text-green-700",
+                    approved: "bg-emerald-100 text-emerald-700",
+                    received: "bg-blue-100 text-blue-700",
+                    rejected: "bg-red-100 text-red-700",
+                    cancelled: "bg-gray-100 text-gray-700",
+                    reopened: "bg-orange-100 text-orange-700",
+                    pending: "bg-yellow-100 text-yellow-700",
+                  };
+                  return (
+                    <div key={ret.id} className="p-4 space-y-3">
+                      {/* Header: customer + status */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-foreground text-sm">{ret.profiles?.name || ret.orders?.customer_name || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{ret.profiles?.email || "—"}</p>
+                          {ret.orders?.phone && <p className="text-xs text-muted-foreground">{ret.orders.phone}</p>}
+                        </div>
+                        <span className={`shrink-0 inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusColor[ret.status] || "bg-yellow-100 text-yellow-700"}`}>
+                          {statusMap[ret.status] ?? ret.status}
+                        </span>
+                      </div>
+
+                      {/* Items */}
+                      {displayItems.length > 0 && (
+                        <ul className="space-y-0.5 border-t border-border/40 pt-2">
+                          {displayItems.map((item: any) => (
+                            <li key={item.id || item.item_id} className="text-xs text-foreground flex justify-between">
+                              <span><span className="font-semibold">{item.title}</span> × {item.quantity}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {/* Reason + images */}
+                      <div className="border-t border-border/40 pt-2 space-y-2">
+                        <p className="text-xs text-muted-foreground">{ret.reason}</p>
+                        {ret.images && ret.images.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {ret.images.map((url: string, idx: number) => (
+                              <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                                <img src={url} alt={`img-${idx + 1}`} className="w-12 h-12 object-cover rounded border border-border" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Refund amount */}
+                      <div className="flex items-center justify-between border-t border-border/40 pt-2">
+                        <span className="text-xs text-muted-foreground">{ar ? "المبلغ المسترد:" : "Refund:"}</span>
+                        <span className="font-black text-primary text-sm">{ret.refund_amount.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2 border-t border-border/40 pt-2">
+                        {ret.status === "pending" && (
+                          <>
+                            <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700 text-[10px] h-7 px-3 flex-1" onClick={() => handleUpdateReturnStatus(ret, "approved")}>
+                              {ar ? "قبول" : "Approve"}
+                            </Button>
+                            <Button size="sm" variant="destructive" className="text-[10px] h-7 px-3 flex-1" onClick={() => { setSelectedReturnToReject(ret); setRejectModalOpen(true); }}>
+                              {ar ? "رفض" : "Reject"}
+                            </Button>
+                          </>
+                        )}
+                        {ret.status === "approved" && (
+                          <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 text-[10px] h-7 px-3 flex-1" onClick={() => openReceiveModal(ret)}>
+                            {ar ? "تأكيد الاستلام" : "Mark Received"}
+                          </Button>
+                        )}
+                        {ret.status === "received" && (
+                          <>
+                            <Button size="sm" className="bg-green-600 text-white hover:bg-green-700 text-[10px] h-7 px-3 flex-1" onClick={() => handleUpdateReturnStatus(ret, "completed")}>
+                              {ar ? "رد المبلغ" : "Complete & Refund"}
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-[10px] h-7 px-3" onClick={() => openReceiveModal(ret)}>
+                              {ar ? "تعديل" : "Edit"}
+                            </Button>
+                          </>
+                        )}
+                        {ret.status === "rejected" && (
+                          <Button size="sm" variant="outline" className="text-[10px] h-7 px-3 flex-1" onClick={() => handleUpdateReturnStatus(ret, "reopened")}>
+                            {ar ? "إعادة فتح" : "Reopen"}
+                          </Button>
+                        )}
+                        {(ret.status === "approved" || ret.status === "received") && (
+                          <Button size="sm" variant="outline" className="text-[10px] h-7 px-3 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleUpdateReturnStatus(ret, "cancelled")}>
+                            {ar ? "إلغاء" : "Cancel"}
+                          </Button>
+                        )}
+                        {ret.user_id && (
+                          <Button size="sm" variant="outline" className="text-[10px] h-7 px-3 flex items-center gap-1" onClick={() => openMessageModal(ret.user_id)}>
+                            <MessageSquare className="w-3 h-3" />
+                            {ar ? "مراسلة" : "Msg"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── DESKTOP: Table layout ── */}
+              <table className="hidden md:table w-full min-w-[980px] text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
                     <th className="p-4 text-start">{ar ? "العميل" : "Customer"}</th>
@@ -761,11 +1003,7 @@ function AdminOrders() {
                             <div className="flex flex-wrap gap-1 mt-2">
                               {ret.images.map((url: string, idx: number) => (
                                 <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
-                                  <img
-                                    src={url}
-                                    alt={`return-img-${idx + 1}`}
-                                    className="w-12 h-12 object-cover rounded border border-border hover:opacity-80 transition-opacity cursor-pointer"
-                                  />
+                                  <img src={url} alt={`return-img-${idx + 1}`} className="w-12 h-12 object-cover rounded border border-border hover:opacity-80 transition-opacity cursor-pointer" />
                                 </a>
                               ))}
                             </div>
@@ -775,19 +1013,18 @@ function AdminOrders() {
                           {ret.refund_amount.toFixed(2)} {ar ? "ج.م" : "EGP"}
                         </td>
                         <td className="p-4">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            ret.status === "completed" ? "bg-green-100 text-green-700" :
-                            ret.status === "approved" ? "bg-emerald-100 text-emerald-700" :
-                            ret.status === "received" ? "bg-blue-100 text-blue-700" :
-                            ret.status === "rejected" ? "bg-red-100 text-red-700" :
-                            "bg-yellow-100 text-yellow-700"
-                          }`}>
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${ret.status === "completed" ? "bg-green-100 text-green-700" :
+                              ret.status === "approved" ? "bg-emerald-100 text-emerald-700" :
+                                ret.status === "received" ? "bg-blue-100 text-blue-700" :
+                                  ret.status === "rejected" ? "bg-red-100 text-red-700" :
+                                    "bg-yellow-100 text-yellow-700"
+                            }`}>
                             {{
-                              pending:  ar ? "قيد المراجعة" : "Pending",
+                              pending: ar ? "قيد المراجعة" : "Pending",
                               approved: ar ? "تمت الموافقة" : "Approved",
                               received: ar ? "تم الاستلام" : "Received",
                               completed: ar ? "مكتمل" : "Completed",
-                              rejected: ar ? "مرفوض"       : "Rejected",
+                              rejected: ar ? "مرفوض" : "Rejected",
                               cancelled: ar ? "ملغى" : "Cancelled",
                             }[ret.status as string] ?? ret.status}
                           </span>
@@ -831,12 +1068,7 @@ function AdminOrders() {
                             )}
                           </div>
                           {ret.user_id && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs flex items-center gap-2"
-                              onClick={() => openMessageModal(ret.user_id)}
-                            >
+                            <Button variant="outline" size="sm" className="text-xs flex items-center gap-2" onClick={() => openMessageModal(ret.user_id)}>
                               <MessageSquare className="w-3.5 h-3.5" />
                               {ar ? "مراسلة" : "Message"}
                             </Button>
@@ -860,7 +1092,7 @@ function AdminOrders() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-bold">{ar ? "نص الرسالة" : "Message Body"}</label>
-              <Textarea 
+              <Textarea
                 value={messageBody}
                 onChange={(e) => setMessageBody(e.target.value)}
                 placeholder={ar ? "اكتب رسالتك هنا للعميل بخصوص الطلب..." : "Type your message here..."}
@@ -888,7 +1120,7 @@ function AdminOrders() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-bold">{ar ? "يرجى كتابة سبب رفض الطلب بوضوح" : "Please provide a clear reason for rejection"}</label>
-              <Textarea 
+              <Textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder={ar ? "المنتج لا يطابق سياسة الاسترجاع..." : "Product does not meet return conditions..."}
@@ -900,9 +1132,9 @@ function AdminOrders() {
             <Button variant="outline" onClick={() => { setRejectModalOpen(false); setRejectionReason(""); }}>
               {ar ? "إلغاء" : "Cancel"}
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => selectedReturnToReject && handleUpdateReturnStatus(selectedReturnToReject, "rejected", rejectionReason)} 
+            <Button
+              variant="destructive"
+              onClick={() => selectedReturnToReject && handleUpdateReturnStatus(selectedReturnToReject, "rejected", rejectionReason)}
               disabled={!rejectionReason.trim()}
             >
               {ar ? "تأكيد الرفض" : "Confirm Rejection"}
@@ -1016,7 +1248,7 @@ function AdminOrders() {
                   <p className="text-sm">{selectedInvoiceOrder.address}, {selectedInvoiceOrder.governorate}</p>
                 </div>
               </div>
-              
+
               <table className="w-full text-start mb-8 border-collapse">
                 <thead>
                   <tr className="border-b-2 border-gray-200">

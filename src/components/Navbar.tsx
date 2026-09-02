@@ -6,7 +6,7 @@ import { siteAssets } from "@/lib/site-assets";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { Search, User, Menu, X, Heart } from "lucide-react";
+import { Search, User, Heart } from "lucide-react";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useCartStore } from "@/lib/cart-store";
 import { supabase } from "@/lib/supabase";
@@ -28,13 +28,13 @@ export function Navbar({ transparent = false }: NavbarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const queryClient = useQueryClient();
-  
+
   const wishlistIds = useWishlistStore((s) => s.productIds);
   const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist);
   const cartItems = useCartStore((s) => s.items);
   const removeCartItem = useCartStore((s) => s.removeItem);
   const syncCartProduct = useCartStore((s) => s.syncProduct);
-  
+
   const wishlistCount = wishlistIds.length;
 
   // Global sync: Check active status of cart & wishlist items on mount
@@ -44,7 +44,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
         ...wishlistIds,
         ...cartItems.map((i) => i.product.id),
       ]);
-      
+
       if (allIds.size === 0) return;
 
       const { data } = await supabase
@@ -123,7 +123,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
   const navLinks = [
     { label: ar ? "الرئيسية" : "Home", to: "/" as const },
     { label: ar ? "المتجر" : "Shop", to: "/shop" as const },
-    { label: ar ? "اكتشف عطرك" : "Quiz", to: "/quiz" as const },
+    { label: ar ? "اكتشف عطرك" : "Find Your Scent", to: "/quiz" as const },
     { label: ar ? "عنا" : "About", to: "/about" as const },
   ];
 
@@ -278,13 +278,14 @@ export function Navbar({ transparent = false }: NavbarProps) {
             )}
 
             <button
-              className="md:hidden text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Menu"
+              onClick={toggleLanguage}
+              className={cn(
+                "md:hidden text-[11px] font-semibold tracking-widest transition-colors uppercase",
+                isSolid ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white"
+              )}
+              aria-label={ar ? "Switch to English" : "تبديل إلى العربية"}
             >
-              {mobileOpen
-                ? <X className="w-6 h-6" strokeWidth={1.5} />
-                : <Menu className="w-6 h-6" strokeWidth={1.5} />}
+              {ar ? "EN" : "عربي"}
             </button>
           </div>
         </div>
@@ -293,18 +294,18 @@ export function Navbar({ transparent = false }: NavbarProps) {
       {/* Mobile Menu */}
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-background flex flex-col justify-center px-8 transition-all duration-500 md:hidden",
+          "fixed inset-0 z-50 bg-background flex flex-col justify-center px-8 transition-all duration-500 md:hidden",
           mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
       >
-        <nav className="flex flex-col gap-8 mb-12 items-center">
+        <nav className="flex flex-col gap-6 mb-8 items-center">
           {navLinks.map(({ label, to }) => (
             <Link
               key={to}
               to={to}
               onClick={() => setMobileOpen(false)}
               className={cn(
-                "text-3xl transition-colors",
+                "text-2xl transition-colors font-medium",
                 ar ? "font-['Tajawal']" : "font-serif uppercase tracking-widest",
                 pathname === to ? "text-primary" : "text-foreground hover:text-primary/70"
               )}
@@ -312,20 +313,20 @@ export function Navbar({ transparent = false }: NavbarProps) {
               {label}
             </Link>
           ))}
-            {user && (
-              <Link
-                to="/wishlist"
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "text-3xl transition-colors",
-                  ar ? "font-['Tajawal']" : "font-serif uppercase tracking-widest",
-                  pathname === "/wishlist" ? "text-primary" : "text-foreground hover:text-primary/70"
-                )}
-              >
-                {ar ? "المفضلة" : "Wishlist"}
-              </Link>
-            )}
-          </nav>
+          {user && (
+            <Link
+              to="/wishlist"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "text-2xl transition-colors font-medium",
+                ar ? "font-['Tajawal']" : "font-serif uppercase tracking-widest",
+                pathname === "/wishlist" ? "text-primary" : "text-foreground hover:text-primary/70"
+              )}
+            >
+              {ar ? "المفضلة" : "Wishlist"}
+            </Link>
+          )}
+        </nav>
 
         <div className="flex flex-col items-center gap-4 mt-8">
           {!loading && (

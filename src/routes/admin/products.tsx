@@ -294,7 +294,8 @@ function AdminProducts() {
           {loading ? (
             <span className="text-muted-foreground">{ar ? "جاري تحميل المنتجات..." : "Loading products..."}</span>
           ) : (
-            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <>
+            <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
@@ -353,6 +354,62 @@ function AdminProducts() {
                 </tbody>
               </table>
             </div>
+            <div className="grid gap-3 md:hidden">
+              {products.map((product) => (
+                <article key={product.id} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    {product.images?.[0] ? (
+                      <img src={product.images[0]} alt={product.title_ar} className="h-20 w-20 rounded-xl object-cover bg-secondary flex-shrink-0" />
+                    ) : (
+                      <div className="h-20 w-20 rounded-xl bg-secondary flex-shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-black text-foreground leading-snug">
+                        {product.is_featured && <span className="text-yellow-400 me-1">⭐</span>}
+                        {ar ? product.title_ar : product.title_en}
+                      </h2>
+                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                        {ar ? product.description_ar : product.description_en}
+                      </p>
+                    </div>
+                    <span className={`flex-shrink-0 px-2 py-1 rounded-full text-[10px] font-bold ${product.is_active ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
+                      {product.is_active ? (ar ? "نشط" : "ACTIVE") : (ar ? "مخفي" : "HIDDEN")}
+                    </span>
+                  </div>
+
+                  <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/60 pt-3 text-sm">
+                    <div>
+                      <dt className="text-xs text-muted-foreground">{ar ? "السعر" : "Price"}</dt>
+                      <dd className="mt-0.5 font-black text-primary">{product.price.toFixed(2)} {ar ? "ج.م" : "EGP"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">{ar ? "المخزون" : "Stock"}</dt>
+                      <dd className="mt-0.5 font-bold text-foreground">{product.stock}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="mt-4 flex justify-end gap-2 border-t border-border/60 pt-3">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className={`h-9 w-9 ${product.is_active ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-muted-foreground hover:text-foreground"}`}
+                      onClick={() => toggleActive(product)}
+                      title={ar ? "تغيير حالة المنتج" : "Toggle Status"}
+                      aria-label={ar ? "تغيير حالة المنتج" : "Toggle Status"}
+                    >
+                      {product.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => openEditModal(product)} aria-label={ar ? "تعديل المنتج" : "Edit product"}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => handleDelete(product.id)} aria-label={ar ? "حذف المنتج" : "Delete product"}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </div>
 
@@ -545,7 +602,7 @@ function AdminProducts() {
                 {uploadingImage && <p className="text-xs text-muted-foreground mt-1">{ar ? "جاري الرفع..." : "Uploading..."}</p>}
                 
                 {imageUrls.length > 0 && (
-                  <div className="flex gap-2 mt-2 overflow-x-auto pb-2">
+                  <div className="flex flex-wrap gap-2 mt-2 pb-2">
                     {imageUrls.map((url, idx) => (
                       <div key={idx} className="relative w-16 h-16 rounded-md overflow-hidden border border-border flex-shrink-0">
                         <img src={url} className="w-full h-full object-cover" />

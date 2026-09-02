@@ -137,7 +137,8 @@ function AdminDiscounts() {
           {loading ? (
             <span className="text-muted-foreground">{ar ? "جاري التحميل..." : "Loading..."}</span>
           ) : (
-            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <>
+            <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
@@ -174,6 +175,40 @@ function AdminDiscounts() {
                 </tbody>
               </table>
             </div>
+            <div className="grid gap-3 md:hidden">
+              {coupons.map((coupon) => (
+                <article key={coupon.id} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{ar ? "كود الخصم" : "Code"}</p>
+                      <h2 className="mt-1 font-black text-lg text-foreground tracking-wider">{coupon.code}</h2>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+                      {coupon.type === "percentage" ? "%" : ar ? "مبلغ" : "Fixed"}
+                    </span>
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-3 text-sm">
+                    <div>
+                      <dt className="text-xs text-muted-foreground">{ar ? "القيمة" : "Value"}</dt>
+                      <dd className="mt-1 font-black text-primary">{coupon.value} {coupon.type === "percentage" ? "%" : ar ? "ج.م" : "EGP"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">{ar ? "الحد الأدنى" : "Min order"}</dt>
+                      <dd className="mt-1 font-bold text-foreground">{coupon.min_order.toFixed(2)} {ar ? "ج.م" : "EGP"}</dd>
+                    </div>
+                  </dl>
+                  <div className="mt-4 flex justify-end gap-2 border-t border-border/60 pt-3">
+                    <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => openEditModal(coupon)} aria-label={ar ? "تعديل الكود" : "Edit coupon"}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => handleDelete(coupon.id)} aria-label={ar ? "حذف الكود" : "Delete coupon"}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </div>
 

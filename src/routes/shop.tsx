@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import type { Product, Category } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
+import { getCachedCategories, getCachedProducts } from "@/lib/data-cache";
 import { useState } from "react";
 import { StoreLayout } from "@/components/StoreLayout";
 import { LuxuryProductCard } from "@/components/LuxuryProductCard";
@@ -14,26 +14,11 @@ export const Route = createFileRoute("/shop")({
   loader: async ({ context: { queryClient } }) => {
     await queryClient.ensureQueryData({
       queryKey: ["products"],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-        if (error) throw error;
-        return data as Product[];
-      },
+      queryFn: getCachedProducts,
     });
     await queryClient.ensureQueryData({
       queryKey: ["categories"],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from("categories")
-          .select("*")
-          .order("created_at", { ascending: true });
-        if (error) throw error;
-        return data as Category[];
-      },
+      queryFn: getCachedCategories,
     });
   },
   head: () => ({
@@ -56,27 +41,12 @@ function ShopPage() {
 
   const { data: products } = useSuspenseQuery<Product[]>({
     queryKey: ["products"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Product[];
-    },
+    queryFn: getCachedProducts,
   });
 
   const { data: categories } = useSuspenseQuery<Category[]>({
     queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data as Category[];
-    },
+    queryFn: getCachedCategories,
   });
 
   const filtered = products
@@ -109,16 +79,15 @@ function ShopPage() {
       {/* Filters bar */}
       <section className="sticky top-16 md:top-20 z-30 bg-background/95 backdrop-blur-sm border-b border-border/40 py-3 shadow-sm">
         <div className="max-w-screen-xl mx-auto px-6 md:px-10 flex flex-col gap-4">
-          
+
           {/* Categories Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
-                selectedCategory === "all"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "bg-secondary text-foreground hover:bg-secondary/70 border border-border/50"
-              }`}
+              className={`px-5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${selectedCategory === "all"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "bg-secondary text-foreground hover:bg-secondary/70 border border-border/50"
+                }`}
             >
               {ar ? "الكل" : "All"}
             </button>
@@ -126,11 +95,10 @@ function ShopPage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${
-                  selectedCategory === cat.id
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "bg-secondary text-foreground hover:bg-secondary/70 border border-border/50"
-                }`}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all whitespace-nowrap ${selectedCategory === cat.id
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "bg-secondary text-foreground hover:bg-secondary/70 border border-border/50"
+                  }`}
               >
                 {ar ? cat.name_ar : cat.name_en}
               </button>

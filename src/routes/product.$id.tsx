@@ -4,8 +4,8 @@ import { StoreLayout } from "@/components/StoreLayout";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingBag, ArrowRight, Shield, Truck, RotateCcw, Wind, Heart as HeartIcon, TreePine } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { supabase } from "@/lib/supabase";
 import type { Product } from "@/lib/types";
+import { getCachedProductById } from "@/lib/data-cache";
 import { useCartStore } from "@/lib/cart-store";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -17,15 +17,7 @@ export const Route = createFileRoute("/product/$id")({
   loader: async ({ context: { queryClient }, params: { id } }) => {
     await queryClient.ensureQueryData({
       queryKey: ["product", id],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("id", id)
-          .single();
-        if (error) throw error;
-        return data as Product;
-      },
+      queryFn: () => getCachedProductById(id),
     });
   },
   head: ({ params }) => ({
@@ -50,15 +42,7 @@ function ProductDetailPage() {
 
   const { data: product } = useSuspenseQuery<Product>({
     queryKey: ["product", id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return data as Product;
-    },
+    queryFn: () => getCachedProductById(id),
   });
 
   if (!product) {
@@ -82,8 +66,8 @@ function ProductDetailPage() {
     const availableStock = Math.max(product.stock || 0, 0);
 
     if (totalRequested > availableStock) {
-      toast.error(ar 
-        ? `عذراً، الكمية المتوفرة في المخزون هي ${availableStock} فقط` 
+      toast.error(ar
+        ? `عذراً، الكمية المتوفرة في المخزون هي ${availableStock} فقط`
         : `Sorry, only ${availableStock} items available in stock`
       );
       return;
@@ -253,7 +237,7 @@ function ProductDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 {/* Connecting line on desktop */}
                 <div className="hidden md:block absolute top-10 left-[16%] right-[16%] h-px bg-border z-0" />
-                
+
                 {[
                   { icon: Wind, arLabel: "القمة", enLabel: "Top Notes", notes_ar: product.top_notes_ar, notes_en: product.top_notes_en },
                   { icon: HeartIcon, arLabel: "القلب", enLabel: "Heart Notes", notes_ar: product.heart_notes_ar, notes_en: product.heart_notes_en },

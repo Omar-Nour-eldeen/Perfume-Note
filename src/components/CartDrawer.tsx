@@ -38,10 +38,8 @@ export function CartDrawer() {
   const [address, setAddress] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [useWallet, setUseWallet] = useState(false);
-
-  useEffect(() => {
-    fetchShippingZones();
-  }, []);
+  // Track if user manually changed the shipping zone this session
+  const [zoneManuallyChanged, setZoneManuallyChanged] = useState(false);
 
   // Real-time: auto-refresh wallet balance when profile changes in DB
   useEffect(() => {
@@ -57,26 +55,41 @@ export function CartDrawer() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
+  // Pre-fill name, phone, address from profile (once per session open)
   useEffect(() => {
-    if (profile) {
+    if (profile && isOpen) {
       if (!name) setName(profile.name || "");
       if (!phone) setPhone(profile.phone || "");
-      if (!address && (profile.address || profile.governorate)) {
-        const addrParts = [];
-        if (profile.governorate) addrParts.push(profile.governorate);
-        if (profile.address) addrParts.push(profile.address);
-        setAddress(addrParts.join(" ، "));
-      }
-      if (profile.governorate && shippingZones.length > 0) {
-        const matchingZone = shippingZones.find(
-          z => z.name_ar === profile.governorate || z.name_en === profile.governorate
-        );
-        if (matchingZone && (!selectedZone || selectedZone === shippingZones[0])) {
-          setSelectedZone(matchingZone);
-        }
+      if (!address && profile.address) setAddress(profile.address);
+    }
+  }, [profile, isOpen]);
+
+  // Auto-select shipping zone from profile governorate every time cart opens
+  // or when profile/zones update — unless user manually picked a zone
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset manual flag when cart closes so next open is fresh
+      setZoneManuallyChanged(false);
+      return;
+    }
+    if (zoneManuallyChanged) return;
+    if (profile?.governorate && shippingZones.length > 0) {
+      const govLower = profile.governorate.toLowerCase().trim();
+      const matchingZone = shippingZones.find(
+        z =>
+          z.name_ar.toLowerCase().trim() === govLower ||
+          z.name_en.toLowerCase().trim() === govLower
+      );
+      if (matchingZone) {
+        setSelectedZone(matchingZone);
+        return;
       }
     }
-  }, [profile, isOpen, shippingZones]);
+    // Fall back to first zone if no match
+    if (shippingZones.length > 0 && !selectedZone) {
+      setSelectedZone(shippingZones[0] as ShippingZone);
+    }
+  }, [isOpen, profile?.governorate, shippingZones, zoneManuallyChanged]);
 
   // ─── verify helper (uses getState to always have fresh references) ───
   const verifyCartItems = async () => {
@@ -142,12 +155,26 @@ export function CartDrawer() {
   }, [isOpen]);
 
   const fetchShippingZones = async () => {
-    const { data } = await supabase.from("shipping_zones").select("*");
+    const { data } = await supabase.from("shipping_zones").select("*").order("cost", { ascending: true });
     if (data) {
       setShippingZones(data as ShippingZone[]);
-      if (data.length > 0) setSelectedZone(data[0] as ShippingZone);
+      if (data.length > 0 && !selectedZone) setSelectedZone(data[0] as ShippingZone);
     }
   };
+
+  // Real-time: auto-update shipping zones when admin changes them
+  useEffect(() => {
+    fetchShippingZones();
+
+    const zonesChannel = supabase
+      .channel("cart_shipping_zones")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shipping_zones" }, () => {
+        fetchShippingZones();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(zonesChannel); };
+  }, []);
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -516,7 +543,10 @@ export function CartDrawer() {
               <select
                 className="w-full text-xs rounded-lg border border-border bg-card p-2.5 text-foreground outline-none"
                 value={selectedZone?.id || ""}
-                onChange={(e) => setSelectedZone(shippingZones.find((z) => z.id === e.target.value) || null)}
+                onChange={(e) => {
+                  setZoneManuallyChanged(true);
+                  setSelectedZone(shippingZones.find((z) => z.id === e.target.value) || null);
+                }}
               >
                 {shippingZones.map((z) => (
                   <option key={z.id} value={z.id}>
@@ -582,7 +612,7 @@ export function CartDrawer() {
                 type="text"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder={ar ? "العنوان بالتفصيل" : "Detailed Address"}
+                placeholder={ar ? "العنوان بالتفصيل (الشارع، الحي...)" : "Street address, district..."}
                 className="w-full text-xs rounded-lg border border-border bg-card px-3 py-2.5 text-foreground outline-none"
               />
 

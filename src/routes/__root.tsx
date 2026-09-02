@@ -8,13 +8,15 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useCartSync } from "@/hooks/use-cart-sync";
 
 import { I18nProvider } from "@/lib/i18n";
+import { AuthProvider } from "@/lib/auth";
+import { preloadSiteData } from "@/lib/data-cache";
 
 function NotFoundComponent() {
   return (
@@ -76,6 +78,58 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+function SiteLoader() {
+  return (
+    <div className="app-loader-overlay" aria-live="polite" aria-busy="true">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <div className="loader" aria-label="Loading" />
+        <div>
+          <p className="text-sm font-medium uppercase tracking-[0.25em] text-primary">Loading</p>
+          <p className="mt-2 text-sm text-muted-foreground">Preparing your store data…</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InitialAppLoader({ queryClient, children }: { queryClient: QueryClient; children: ReactNode }) {
+  const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      try {
+        await preloadSiteData(queryClient);
+        if (!cancelled) {
+          setIsReady(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err : new Error("Failed to load the initial page data."));
+        }
+      }
+    };
+
+    void bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
+
+  if (error) {
+    return <ErrorComponent error={error} reset={() => window.location.reload()} />;
+  }
+
+  if (!isReady) {
+    return <SiteLoader />;
+  }
+
+  return <>{children}</>;
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -131,20 +185,18 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-import { AuthProvider } from "@/lib/auth";
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useCartSync();
-
-  // Lenis removed as per user request
 
   return (
     <I18nProvider>
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
-          <Outlet />
-          <Toaster position="top-center" richColors />
+          <InitialAppLoader queryClient={queryClient}>
+            <Outlet />
+            <Toaster position="top-center" richColors />
+          </InitialAppLoader>
         </QueryClientProvider>
       </AuthProvider>
     </I18nProvider>

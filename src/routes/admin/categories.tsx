@@ -134,7 +134,8 @@ function AdminCategories() {
           {loading ? (
             <span className="text-muted-foreground">{ar ? "جاري تحميل الأقسام..." : "Loading categories..."}</span>
           ) : (
-            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <>
+            <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
@@ -172,6 +173,35 @@ function AdminCategories() {
                 </tbody>
               </table>
             </div>
+            <div className="grid gap-3 md:hidden">
+              {categories.map((category) => (
+                <article key={category.id} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{ar ? "الاسم بالعربي" : "Arabic name"}</p>
+                      <p className="mt-1 font-bold text-foreground break-words">{category.name_ar}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{ar ? "الاسم بالإنجليزي" : "English name"}</p>
+                      <p className="mt-1 font-bold text-foreground break-words">{category.name_en}</p>
+                    </div>
+                    <div className="col-span-2 border-t border-border/60 pt-3">
+                      <p className="text-xs text-muted-foreground">Slug</p>
+                      <p className="mt-1 text-sm text-foreground font-mono break-all">{category.slug}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2 border-t border-border/60 pt-3">
+                    <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => openEditModal(category)} aria-label={ar ? "تعديل القسم" : "Edit category"}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => handleDelete(category.id)} aria-label={ar ? "حذف القسم" : "Delete category"}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </div>
 

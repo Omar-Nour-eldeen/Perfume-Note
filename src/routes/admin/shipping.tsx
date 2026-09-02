@@ -131,7 +131,8 @@ function AdminShipping() {
           {loading ? (
             <span className="text-muted-foreground">{ar ? "جاري التحميل..." : "Loading..."}</span>
           ) : (
-            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <>
+            <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
               <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
@@ -164,6 +165,35 @@ function AdminShipping() {
                 </tbody>
               </table>
             </div>
+            <div className="grid gap-3 md:hidden">
+              {zones.map((zone) => (
+                <article key={zone.id} className="bg-card border border-border rounded-2xl p-4 shadow-sm">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">{ar ? "المنطقة بالعربي" : "Arabic name"}</p>
+                      <p className="mt-1 font-bold text-foreground break-words">{zone.name_ar}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">{ar ? "المنطقة بالإنجليزي" : "English name"}</p>
+                      <p className="mt-1 font-bold text-foreground break-words">{zone.name_en}</p>
+                    </div>
+                    <div className="col-span-2 border-t border-border/60 pt-3">
+                      <p className="text-xs text-muted-foreground">{ar ? "تكلفة الشحن" : "Shipping cost"}</p>
+                      <p className="mt-1 font-black text-primary">{zone.cost.toFixed(2)} {ar ? "ج.م" : "EGP"}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2 border-t border-border/60 pt-3">
+                    <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => openEditModal(zone)} aria-label={ar ? "تعديل المنطقة" : "Edit zone"}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => handleDelete(zone.id)} aria-label={ar ? "حذف المنطقة" : "Delete zone"}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </div>
 

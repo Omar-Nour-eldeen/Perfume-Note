@@ -47,19 +47,25 @@
   --radius: 0px;
 
   /* === Warm Ivory / Cream Luxury Palette === */
-  --background: #F8F4EF;       /* Warm ivory */
-  --foreground: #1A1614;       /* Deep charcoal */
-  --card: #FDFAF6;             /* Off-white cream */
+  --background: #F8F4EF;
+  /* Warm ivory */
+  --foreground: #1A1614;
+  /* Deep charcoal */
+  --card: #FDFAF6;
+  /* Off-white cream */
   --card-foreground: #1A1614;
   --popover: #FDFAF6;
   --popover-foreground: #1A1614;
-  --primary: #8B6B4A;          /* Muted warm brown / gold */
+  --primary: #8B6B4A;
+  /* Muted warm brown / gold */
   --primary-foreground: #FDFAF6;
-  --secondary: #EDE8E1;        /* Soft sand/beige */
+  --secondary: #EDE8E1;
+  /* Soft sand/beige */
   --secondary-foreground: #1A1614;
   --muted: #E8E2D9;
   --muted-foreground: #6B5E52;
-  --accent: #D4B896;           /* Warm tan */
+  --accent: #D4B896;
+  /* Warm tan */
   --accent-foreground: #1A1614;
   --destructive: #C0392B;
   --destructive-foreground: #FDFAF6;
@@ -120,21 +126,33 @@
     font-family: var(--font-arabic);
   }
 
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-family: var(--font-serif);
     font-weight: 400;
     line-height: 1.15;
   }
 
-  h4, h5, h6 {
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-sans);
     font-weight: 600;
   }
 
   /* Lenis CSS classes kept for compatibility */
-  html.lenis { height: auto; }
-  .lenis.lenis-smooth { scroll-behavior: auto !important; }
-  .lenis.lenis-stopped { overflow: hidden; }
+  html.lenis {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
 }
 
 /* ── Typography utilities ─────────────────────── */
@@ -150,6 +168,7 @@
 .link-underline {
   position: relative;
 }
+
 .link-underline::after {
   content: "";
   position: absolute;
@@ -160,6 +179,7 @@
   background-color: currentColor;
   transition: width 0.3s ease;
 }
+
 .link-underline:hover::after {
   width: 100%;
 }
@@ -168,9 +188,11 @@
 .img-zoom {
   overflow: hidden;
 }
+
 .img-zoom img {
   transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
+
 .img-zoom:hover img {
   transform: scale(1.04);
 }
@@ -181,6 +203,7 @@
     opacity: 0;
     transform: translateY(24px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -203,20 +226,63 @@
   animation: fade-up 0.7s 0.3s ease both;
 }
 
+.app-loader-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 244, 239, 0.97);
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+.loader {
+  width: 50px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 8px solid lightblue;
+  border-right-color: orange;
+  animation: l2 1s infinite linear;
+}
+
+@keyframes l2 {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
 @utility text-balance {
   text-wrap: balance;
 }
 
 /* ── Scroll indicator ─────────────────────────── */
 @keyframes scroll-down {
-  0% { transform: translateY(-100%); opacity: 0; }
-  50% { opacity: 1; }
-  100% { transform: translateY(100%); opacity: 0; }
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
 }
+
 .animate-scroll-indicator {
   animation: scroll-down 2s ease-in-out infinite;
 }
 
 /* ── No scrollbar ─────────────────────────────── */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

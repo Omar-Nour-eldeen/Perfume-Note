@@ -110,6 +110,13 @@ function AdminChat() {
   };
 
   const fetchSessionMessages = async (session: SessionInfo) => {
+    if (activeSession === session.sessionId) {
+      setActiveSession(null);
+      setMessages([]);
+      setCustomerInfo(null);
+      return;
+    }
+
     setActiveSession(session.sessionId);
     setCustomerInfo(null);
 
@@ -205,7 +212,7 @@ function AdminChat() {
   return (
     <AdminGuard>
       <AdminLayout>
-        <div className="space-y-6 h-[calc(100vh-10rem)] flex flex-col">
+        <div className="space-y-4 md:space-y-6 h-[calc(100dvh-8rem)] md:h-[calc(100vh-10rem)] min-h-[560px] flex flex-col">
           <div>
             <h1 className="text-2xl font-black text-foreground">
               {ar ? "محادثات الدعم" : "Support Chats"}
@@ -215,9 +222,9 @@ function AdminChat() {
             </p>
           </div>
 
-          <div className="flex-1 flex border border-border bg-card rounded-2xl overflow-hidden min-h-0">
+          <div className="flex-1 flex flex-col md:flex-row border border-border bg-card rounded-2xl overflow-hidden min-h-0">
             {/* Session Sidebar */}
-            <div className="w-56 border-e border-border overflow-y-auto flex-shrink-0">
+            <div className="w-full md:w-56 max-h-40 md:max-h-none border-b md:border-b-0 md:border-e border-border overflow-y-auto flex-shrink-0">
               <div className="p-3 border-b border-border bg-secondary/10">
                 <span className="font-bold text-xs text-muted-foreground">
                   {ar ? "المحادثات" : "Chats"}
@@ -257,13 +264,13 @@ function AdminChat() {
             <div className="flex-1 flex flex-col min-w-0 bg-secondary/5">
               {activeSession ? (
                 <>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
                     {messages.map((msg) => {
                       const isMe = msg.is_admin;
                       return (
                         <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                           <div
-                            className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${
+                            className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${
                               isMe
                                 ? "bg-primary text-white rounded-br-none"
                                 : "bg-card border border-border text-foreground rounded-bl-none"
@@ -283,7 +290,7 @@ function AdminChat() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  <form onSubmit={handleSend} className="p-4 border-t border-border bg-card flex gap-2">
+                  <form onSubmit={handleSend} className="p-3 md:p-4 border-t border-border bg-card flex gap-2">
                     <Input
                       type="text"
                       value={input}
@@ -293,7 +300,7 @@ function AdminChat() {
                     />
                     <Button type="submit" className="bg-primary text-white">
                       <Send className="h-4 w-4 me-2" />
-                      {ar ? "إرسال" : "Send"}
+                      <span className="hidden sm:inline">{ar ? "إرسال" : "Send"}</span>
                     </Button>
                   </form>
                 </>
@@ -306,7 +313,7 @@ function AdminChat() {
 
             {/* Customer Info Panel */}
             {activeSession && (
-              <div className="w-64 border-s border-border overflow-y-auto flex-shrink-0 bg-background">
+              <div className="hidden md:block w-64 border-s border-border overflow-y-auto flex-shrink-0 bg-background">
                 <div className="p-3 border-b border-border bg-secondary/10">
                   <span className="font-bold text-xs text-muted-foreground">
                     {ar ? "بيانات العميل" : "Customer Info"}

@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import type { Product } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
+import { getCachedProducts } from "@/lib/data-cache";
 
 import { StoreLayout } from "@/components/StoreLayout";
 import { Hero } from "@/components/Hero";
@@ -15,15 +15,7 @@ export const Route = createFileRoute("/")({
   loader: async ({ context: { queryClient } }) => {
     await queryClient.ensureQueryData({
       queryKey: ["products"],
-      queryFn: async () => {
-        const { data, error } = await supabase
-          .from("products")
-          .select("*")
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-        if (error) throw error;
-        return data as Product[];
-      },
+      queryFn: getCachedProducts,
     });
   },
   head: () => ({
@@ -42,15 +34,7 @@ function HomePage() {
 
   const { data: products } = useSuspenseQuery<Product[]>({
     queryKey: ["products"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Product[];
-    },
+    queryFn: getCachedProducts,
   });
 
   // Each homepage section is controlled only by its matching admin checkbox.
@@ -98,11 +82,21 @@ function HomePage() {
       )}
 
       {/* Parallax CTA */}
-      <section
-        className="relative py-20 md:py-32 overflow-hidden h-150 justify-content-center items-center flex"
-        style={{ backgroundImage: `url('${siteAssets.hero}')`, backgroundSize: "cover", backgroundPosition: "center", backgroundAttachment: "fixed" }}
-      >
-        <div className="absolute inset-0 bg-black/35" />
+      <section className="relative w-full aspect-video lg:aspect-auto lg:py-40 lg:min-h-[700px] flex items-center justify-center overflow-hidden">
+        {/* Background Video */}
+        <div className="absolute inset-0">
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover"
+            aria-hidden="true"
+          >
+            <source src={siteAssets.heroVideo} type="video/mp4" />
+          </video>
+        </div>
+        <div className="absolute inset-0 bg-black/40" />
         <div className="relative z-10 max-w-screen-xl mx-auto px-6 md:px-10 flex flex-col items-center text-center">
           <h2 className={`text-3xl md:text-5xl text-white mb-8 leading-tight max-w-2xl ${ar ? "font-['Tajawal'] font-bold" : "font-serif"}`}>
             {ar ? "عطرك القادم\nينتظرك هنا." : "Your Next\nSignature Scent\nAwaits."}

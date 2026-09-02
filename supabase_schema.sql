@@ -252,8 +252,14 @@ create table public.returns (
   order_id uuid references public.orders(id) on delete cascade not null,
   user_id uuid references public.profiles(id) on delete cascade not null,
   reason text not null,
-  status text not null check (status in ('pending', 'approved', 'rejected')) default 'pending',
+  status text not null check (status in ('pending', 'approved', 'rejected', 'received', 'completed', 'reopened', 'cancelled')) default 'pending',
   refund_amount numeric(10, 2) not null,
+  images text[] default '{}'::text[],
+  returned_items jsonb default '[]'::jsonb,
+  received_items jsonb default '[]'::jsonb,
+  rejection_reason text,
+  rejected_at timestamp with time zone,
+  refunded boolean not null default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -264,6 +270,9 @@ create policy "Users can view and create their own return requests" on public.re
 
 create policy "Users can insert their own return requests" on public.returns
   for insert with check (auth.uid() = user_id);
+
+create policy "Only admin can update returns" on public.returns
+  for update using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true) or auth.uid() = user_id);
 
 
 -- WALLET TRANSACTIONS

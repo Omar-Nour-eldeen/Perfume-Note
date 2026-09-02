@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import type { ChatMessage } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "@tanstack/react-router";
+import { createNotification } from "@/lib/notifications";
 
 // Key to persist read-count in localStorage so badge doesn't return after refresh
 const CHAT_READ_KEY = "perfume_note_chat_read_count";
@@ -169,19 +170,35 @@ export function ChatWidget() {
       ...payload,
       created_at: new Date().toISOString(),
     };
-    
+
     setMessages((prev) => [...prev, optimisticMsg]);
     setInput("");
 
     const { error } = await supabase.from("chat_messages").insert(payload);
-    if (error) console.error(error);
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    await createNotification({
+      user_id: "admin",
+      type: "new_chat_message",
+      title_ar: "رسالة محادثة جديدة",
+      title_en: "New chat message",
+      body_ar: input,
+      body_en: input,
+      link: "/admin/chat",
+    });
   };
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col items-end md:bottom-6 bottom-20">
+    <div className="fixed bottom-[64px] left-4 lg:bottom-6 lg:left-6 z-40 flex flex-col items-start" dir="ltr">
       {/* Chat Window */}
       {isOpen && (
-        <div className="bg-card border border-border shadow-2xl rounded-2xl w-80 sm:w-96 h-[450px] flex flex-col mb-4 overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
+        <div
+          className="bg-card border border-border shadow-2xl rounded-2xl w-80 sm:w-96 h-[450px] flex flex-col mb-4 overflow-hidden animate-in slide-in-from-bottom-5 duration-200"
+          dir={ar ? "rtl" : "ltr"}
+        >
           {/* Header */}
           <div className="bg-primary p-4 text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -277,9 +294,9 @@ export function ChatWidget() {
       <Button
         onClick={isOpen ? handleClose : handleOpen}
         size="icon"
-        className="relative h-14 w-14 rounded-full bg-primary text-white shadow-xl hover:bg-primary/90 transition transform hover:scale-105"
+        className="relative h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 transition-all duration-300 transform hover:scale-105 flex items-center justify-center border-0 outline-none"
       >
-        {isOpen ? <X className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
+        {isOpen ? <X className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
         {/* Unread badge */}
         {!isOpen && unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold shadow animate-bounce">
