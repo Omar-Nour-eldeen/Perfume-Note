@@ -684,6 +684,7 @@ function AdminOrders() {
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
                     <th className="p-4 text-start">{ar ? "العميل" : "Customer"}</th>
                     <th className="p-4 text-start">{ar ? "المنتجات" : "Items"}</th>
+                    <th className="p-4 text-start">{ar ? "التاريخ" : "Date"}</th>
                     <th className="p-4 text-start">{ar ? "إجمالي الفاتورة" : "Total"}</th>
                     <th className="p-4 text-start">{ar ? "الدفع / المنطقة" : "Payment / Area"}</th>
                     <th className="p-4 text-start">{ar ? "حالة الطلب" : "Status"}</th>
