@@ -35,6 +35,8 @@ function HomePage() {
   const { data: products } = useSuspenseQuery<Product[]>({
     queryKey: ["products"],
     queryFn: getCachedProducts,
+    // Always consider products stale so admin changes show immediately.
+    staleTime: 0,
   });
 
   // Each homepage section is controlled only by its matching admin checkbox.

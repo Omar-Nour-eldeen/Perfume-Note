@@ -42,6 +42,9 @@ function ShopPage() {
   const { data: products } = useSuspenseQuery<Product[]>({
     queryKey: ["products"],
     queryFn: getCachedProducts,
+    // Always consider products stale so any admin change is reflected
+    // as soon as the user navigates to this page.
+    staleTime: 0,
   });
 
   const { data: categories } = useSuspenseQuery<Category[]>({

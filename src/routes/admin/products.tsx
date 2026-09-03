@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { AdminGuard } from "@/components/admin/AdminGuard";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { Plus, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
 import { useCartStore } from "@/lib/cart-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
+import { notifyProductChange } from "@/lib/data-cache";
 
 export const Route = createFileRoute("/admin/products")({
   component: AdminProducts,
@@ -19,6 +21,7 @@ export const Route = createFileRoute("/admin/products")({
 function AdminProducts() {
   const { language } = useI18n();
   const ar = language === "ar";
+  const queryClient = useQueryClient();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,6 +196,8 @@ function AdminProducts() {
         if (error) throw error;
         toast.success(ar ? "تم إضافة المنتج بنجاح" : "Product added successfully");
       }
+      // Notify all clients, tabs, and refetch React Query queries
+      notifyProductChange(queryClient, editingProduct?.id);
       setShowModal(false);
       fetchProductsAndCategories();
     } catch (err: any) {
@@ -212,6 +217,9 @@ function AdminProducts() {
       useCartStore.getState().removeItem(id);
       useWishlistStore.getState().removeFromWishlist(id);
       
+      // Notify all clients, tabs, and refetch React Query queries
+      notifyProductChange(queryClient, id);
+
       toast.success(ar ? "تم حذف المنتج بنجاح" : "Product deleted successfully");
       fetchProductsAndCategories();
     } catch (error: any) {
@@ -233,7 +241,10 @@ function AdminProducts() {
         useCartStore.getState().removeItem(product.id);
         useWishlistStore.getState().removeFromWishlist(product.id);
       }
-      
+
+      // Notify all clients, tabs, and refetch React Query queries
+      notifyProductChange(queryClient, product.id);
+
       toast.success(newStatus ? (ar ? "تم تنشيط المنتج" : "Product activated") : (ar ? "تم إخفاء المنتج" : "Product hidden"));
     } catch (error: any) {
       toast.error(error.message);

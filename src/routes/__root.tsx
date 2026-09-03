@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -16,7 +16,8 @@ import { useCartSync } from "@/hooks/use-cart-sync";
 
 import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { preloadSiteData } from "@/lib/data-cache";
+import { preloadSiteData, invalidateProductCache } from "@/lib/data-cache";
+import { supabase } from "@/lib/supabase";
 
 function NotFoundComponent() {
   return (
@@ -190,14 +191,97 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Listens to Supabase Realtime events on the `products` table.
+ * Whenever any product is inserted, updated, or deleted, it actively refetches
+ * the products list and notifies every mounted component (shop, home, etc.)
+ * to re-render with the latest data — no manual refresh needed.
+ */
+function useProductsRealtime() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handleRefetch = (productId?: string) => {
+      invalidateProductCache();
+      if (productId) {
+        queryClient.removeQueries({ queryKey: ["product", productId] });
+      }
+      queryClient.refetchQueries({ queryKey: ["products"] });
+    };
+
+    // 1. Cross-tab storage listener (same browser)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "perfume-note:refresh-at") {
+        handleRefetch();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    // 2. Cross-tab BroadcastChannel listener (same browser)
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        bc = new BroadcastChannel("perfume-note-sync");
+        bc.onmessage = (event) => {
+          if (event.data === "products-updated") {
+            handleRefetch();
+          }
+        };
+      } catch {
+        // Ignore
+      }
+    }
+
+    // 3. Supabase Realtime channel (postgres_changes + broadcast for cross-device)
+    const channel = supabase
+      .channel("products-realtime-channel")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        (payload) => {
+          const productId =
+            (payload.new as { id?: string })?.id ||
+            (payload.old as { id?: string })?.id;
+          handleRefetch(productId);
+        }
+      )
+      .on(
+        "broadcast",
+        { event: "products-changed" },
+        (payload: Record<string, any>) => {
+          const innerPayload = payload["payload"] as { productId?: string } | undefined;
+          handleRefetch(innerPayload?.productId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      if (bc) bc.close();
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+}
+
+
+/**
+ * Inner component rendered under QueryClientProvider so that
+ * useProductsRealtime can safely call useQueryClient().
+ */
+function AppInner() {
+  useCartSync();
+  useProductsRealtime();
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  useCartSync();
 
   return (
     <I18nProvider>
       <AuthProvider>
         <QueryClientProvider client={queryClient}>
+          <AppInner />
           <InitialAppLoader queryClient={queryClient}>
             <Outlet />
             <Toaster position="top-center" richColors />
