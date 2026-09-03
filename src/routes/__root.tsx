@@ -15,7 +15,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { useCartSync } from "@/hooks/use-cart-sync";
 
 import { I18nProvider } from "@/lib/i18n";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import { preloadSiteData } from "@/lib/data-cache";
 
 function NotFoundComponent() {
@@ -107,7 +107,12 @@ function InitialAppLoader({ queryClient, children }: { queryClient: QueryClient;
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err : new Error("Failed to load the initial page data."));
+          // Authentication pages must remain usable when optional store data is unavailable.
+          if (window.location.pathname.startsWith("/auth/")) {
+            setIsReady(true);
+          } else {
+            setError(err instanceof Error ? err : new Error("Failed to load the initial page data."));
+          }
         }
       }
     };

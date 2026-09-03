@@ -7,6 +7,8 @@ create table public.profiles (
   email text not null,
   name text,
   phone text,
+  address text,
+  governorate text,
   avatar_url text,
   balance numeric(10, 2) not null default 0.00,
   is_admin boolean not null default false,
@@ -22,15 +24,21 @@ create policy "Public profiles are viewable by everyone." on public.profiles
 create policy "Users can update their own profile." on public.profiles
   for update using (auth.uid() = id);
 
+create policy "Users can create their own profile." on public.profiles
+  for insert with check (auth.uid() = id);
+
 -- Trigger to create profile on signup
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email, name, avatar_url, is_admin, balance)
+  insert into public.profiles (id, email, name, phone, address, governorate, avatar_url, is_admin, balance)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', ''),
+    coalesce(new.raw_user_meta_data->>'phone', ''),
+    coalesce(new.raw_user_meta_data->>'address', ''),
+    coalesce(new.raw_user_meta_data->>'governorate', ''),
     coalesce(new.raw_user_meta_data->>'avatar_url', ''),
     coalesce((new.raw_user_meta_data->>'is_admin')::boolean, false),
     0.00

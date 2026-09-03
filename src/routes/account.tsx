@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { createNotification } from "@/lib/notifications";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { EGYPT_GOVERNORATES, formatGovernorate, findGovernoratePair } from "@/lib/governorates";
 
 export const Route = createFileRoute("/account")({
   component: AccountPage,
@@ -59,7 +60,14 @@ function AccountPage() {
   useEffect(() => {
     if (!loading && !user) {
       navigate({ to: "/auth/login" });
-    } else if (user) {
+    } else if (!loading && user && profile) {
+      if (
+        user.app_metadata?.provider === "google" &&
+        (!profile.phone || !profile.governorate || !profile.address)
+      ) {
+        navigate({ to: "/auth/complete-profile" });
+        return;
+      }
       fetchOrdersAndReturns();
 
       // Subscribe to real-time updates for user's orders
@@ -489,11 +497,24 @@ function AccountPage() {
     }
   };
 
-  if (loading || !profile) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <span className="text-muted-foreground">{ar ? "جاري التحميل..." : "Loading account..."}</span>
       </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <StoreLayout>
+        <main className="mx-auto max-w-md px-4 pt-28 pb-16 text-center">
+          <h2 className="text-xl font-bold mb-4">{ar ? "تعذر تحميل بيانات الحساب" : "Unable to load profile"}</h2>
+          <Button onClick={() => window.location.reload()} className="bg-primary text-primary-foreground">
+            {ar ? "إعادة التحديث" : "Refresh Page"}
+          </Button>
+        </main>
+      </StoreLayout>
     );
   }
 
@@ -589,9 +610,23 @@ function AccountPage() {
               <div>
                 <span className="font-bold block text-muted-foreground mb-1">{ar ? "المحافظة" : "Governorate"}</span>
                 {isEditing ? (
-                  <Input value={editGovernorate} onChange={(e) => setEditGovernorate(e.target.value)} className="h-8 text-sm" placeholder={ar ? "المحافظة" : "Governorate"} />
+                  <select
+                    value={findGovernoratePair(editGovernorate)?.ar || editGovernorate}
+                    onChange={(e) => setEditGovernorate(e.target.value)}
+                    className="w-full h-8 rounded-md border border-input bg-background text-foreground text-sm px-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    style={{ direction: ar ? "rtl" : "ltr" }}
+                  >
+                    <option value="">
+                      {ar ? "اختر المحافظة..." : "Select governorate..."}
+                    </option>
+                    {EGYPT_GOVERNORATES.map((gov) => (
+                      <option key={gov.ar} value={gov.ar}>
+                        {ar ? gov.ar : gov.en}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
-                  <span>{profile.governorate || (ar ? "غير محدد" : "Not specified")}</span>
+                  <span>{formatGovernorate(profile.governorate, ar)}</span>
                 )}
               </div>
               <div>
