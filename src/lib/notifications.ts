@@ -20,7 +20,7 @@ export function useNotifications() {
   const isAdmin = profile?.is_admin;
 
   const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ["notifications", userId],
+    queryKey: ["notifications", userId, isAdmin],
     queryFn: async () => {
       if (!userId) return [];
       
@@ -44,7 +44,7 @@ export function useNotifications() {
     if (!userId) return;
 
     const channel = supabase
-      .channel(`notifications-${userId}`)
+      .channel(`notifications-${userId}-${isAdmin ? 'admin' : 'user'}`)
       .on(
         "postgres_changes",
         {
@@ -56,7 +56,7 @@ export function useNotifications() {
           if (payload.eventType === "INSERT") {
             playNotificationSound();
           }
-          queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
         }
       )
       .subscribe();

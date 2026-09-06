@@ -8,6 +8,7 @@ export interface Profile {
   avatar_url: string | null;
   balance: number;
   is_admin: boolean;
+  phone_verified?: boolean;
   created_at: string;
 }
 

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { User, Phone, MapPin, Home, ArrowRight, Sparkles, Loader2 } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { User, Phone, MapPin, Home, ArrowRight, ArrowLeft, Sparkles, Loader2, LogOut, Camera, Upload } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -8,28 +8,66 @@ import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { siteAssets } from "@/lib/site-assets";
+import { EGYPT_GOVERNORATES } from "@/lib/governorates";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export const Route = createFileRoute("/auth/complete-profile")({
   component: CompleteProfilePage,
 });
 
-import { EGYPT_GOVERNORATES } from "@/lib/governorates";
-
 function CompleteProfilePage() {
   const { language } = useI18n();
   const ar = language === "ar";
   const navigate = useNavigate();
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile, signOut } = useAuth();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [governorate, setGovernorate] = useState("");
   const [address, setAddress] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isLeavingRef = useRef(false);
+
+  const handleCancelAndLeave = async () => {
+    isLeavingRef.current = true;
+    await signOut();
+    window.location.href = "/";
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploadingAvatar(true);
+      if (!event.target.files || event.target.files.length === 0 || !user) {
+        return;
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}-${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      setAvatarUrl(data.publicUrl);
+      toast.success(ar ? "تم رفع الصورة بنجاح" : "Avatar uploaded successfully");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(ar ? "فشل رفع الصورة" : "Failed to upload image");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || isLeavingRef.current) return;
 
     // If not logged in, redirect to login
     if (!user) {
@@ -52,10 +90,12 @@ function CompleteProfilePage() {
 
       // Pre-fill whatever we already have
       const googleName = (user.user_metadata?.full_name || user.user_metadata?.name) as string | undefined;
+      const googleAvatar = user.user_metadata?.avatar_url as string | undefined;
       setName(profile.name || googleName || "");
       setPhone(profile.phone || "");
       setGovernorate(profile.governorate || "");
       setAddress(profile.address || "");
+      setAvatarUrl(profile.avatar_url || googleAvatar || null);
     }
 
     setChecking(false);
@@ -96,6 +136,8 @@ function CompleteProfilePage() {
           phone: phone.trim(),
           governorate: governorate.trim(),
           address: address.trim(),
+          avatar_url: avatarUrl || "",
+          phone_verified: true,
         })
         .eq("id", user!.id);
 
@@ -176,17 +218,29 @@ function CompleteProfilePage() {
       </div>
 
       {/* ── Form panel ── */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-background min-h-screen">
+      <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 bg-background min-h-screen relative">
         <div className="w-full max-w-md">
+          {/* Back Button */}
+          <div className="mb-6">
+            <button
+              type="button"
+              onClick={handleCancelAndLeave}
+              className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors group"
+            >
+              <ArrowLeft className={`h-4 w-4 transition-transform ${ar ? "rotate-180 group-hover:translate-x-1" : "group-hover:-translate-x-1"}`} />
+              {ar ? "العودة للرئيسية (التصفح كزائر)" : "Back to Home (Browse as Guest)"}
+            </button>
+          </div>
+
           {/* Logo */}
           <div className="mb-8 text-center">
-            <Link to="/" className="inline-block">
+            <button type="button" onClick={handleCancelAndLeave} className="inline-block">
               <img
                 src={siteAssets.logo}
                 alt="Perfume Note"
-                className="h-12 mx-auto object-contain"
+                className="h-12 mx-auto object-contain cursor-pointer"
               />
-            </Link>
+            </button>
             <h1
               className="mt-4 text-2xl font-serif text-foreground"
               style={{ fontFamily: "var(--font-serif)" }}
@@ -201,6 +255,42 @@ function CompleteProfilePage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Avatar Upload (Optional) */}
+            <div className="flex flex-col items-center justify-center mb-4">
+              <div className="relative group">
+                <Avatar className="w-24 h-24 border-2 border-border shadow-md">
+                  <AvatarImage src={avatarUrl || ""} alt="Profile" className="object-cover" />
+                  <AvatarFallback className="bg-secondary text-foreground text-xl font-bold">
+                    {name ? name.slice(0, 2).toUpperCase() : <User className="w-8 h-8 text-muted-foreground" />}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-2.5 rounded-full shadow-lg hover:bg-primary/90 transition-all flex items-center justify-center"
+                  title={ar ? "تغيير الصورة الشخصية" : "Change Avatar"}
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <input
+                type="file"
+                hidden
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleAvatarUpload}
+                disabled={uploadingAvatar}
+              />
+              <span className="text-xs text-muted-foreground mt-2 font-medium">
+                {ar ? "الصورة الشخصية (اختياري)" : "Profile Picture (Optional)"}
+              </span>
+            </div>
+
             {/* Name */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground" htmlFor="cp-name">
@@ -322,6 +412,17 @@ function CompleteProfilePage() {
                 </>
               )}
             </Button>
+
+            {/* Cancel / Browse as guest */}
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              <button
+                type="button"
+                onClick={handleCancelAndLeave}
+                className="hover:text-foreground underline transition-colors"
+              >
+                {ar ? "إلغاء والتصفح كزائر دون تسجيل" : "Cancel and browse as guest"}
+              </button>
+            </p>
           </form>
         </div>
       </div>

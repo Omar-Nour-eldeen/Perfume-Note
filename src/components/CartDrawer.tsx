@@ -55,14 +55,14 @@ export function CartDrawer() {
     return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
-  // Pre-fill name, phone, address from profile (once per session open)
+  // Sync name, phone, address from profile whenever profile updates or when cart opens
   useEffect(() => {
-    if (profile && isOpen) {
-      if (!name) setName(profile.name || "");
-      if (!phone) setPhone(profile.phone || "");
-      if (!address && profile.address) setAddress(profile.address);
+    if (profile) {
+      setName(profile.name || "");
+      setPhone(profile.phone || "");
+      setAddress(profile.address || "");
     }
-  }, [profile, isOpen]);
+  }, [profile?.name, profile?.phone, profile?.address, isOpen]);
 
   // Auto-select shipping zone from profile governorate every time cart opens
   // or when profile/zones update — unless user manually picked a zone
@@ -382,7 +382,7 @@ export function CartDrawer() {
         title_en: "New Order",
         body_ar: adminBodyAr,
         body_en: adminBodyEn,
-        link: "/admin/orders",
+        link: `/admin/orders?orderId=${orderId}`,
       });
 
       // Notify user if logged in
@@ -394,7 +394,7 @@ export function CartDrawer() {
           title_en: "Order Confirmed",
           body_ar: userBodyAr,
           body_en: userBodyEn,
-          link: "/account",
+          link: `/account?orderId=${orderId}`,
         });
       }
 

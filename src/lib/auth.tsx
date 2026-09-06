@@ -21,23 +21,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // onAuthStateChange emits INITIAL_SESSION / SIGNED_IN on OAuth return
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        void fetchProfile(session.user.id, session.user).then((loadedProfile) => {
-          // If user just signed in (e.g. Google OAuth) and details are incomplete,
-          // immediately redirect them to /auth/complete-profile
-          if (
-            (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
-            loadedProfile &&
-            session.user.app_metadata?.provider === "google" &&
-            (!loadedProfile.phone || !loadedProfile.governorate || !loadedProfile.address) &&
-            !window.location.pathname.startsWith("/auth/complete-profile")
-          ) {
-            window.location.href = "/auth/complete-profile";
-          }
-        });
+        void fetchProfile(session.user.id, session.user);
       } else {
         setProfile(null);
         setLoading(false);
@@ -83,6 +70,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             activeProfile = newProfile as Profile;
           }
         }
+      }
+
+      // Check if profile is incomplete (missing phone, governorate, or address)
+      const isIncomplete =
+        !activeProfile ||
+        !activeProfile.phone ||
+        !activeProfile.governorate ||
+        !activeProfile.address;
+
+      const isCurrentRouteCompleteProfile =
+        typeof window !== "undefined" &&
+        window.location.pathname.startsWith("/auth/complete-profile");
+
+      if (isIncomplete && !isCurrentRouteCompleteProfile) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setProfile(null);
+        return null;
       }
 
       setProfile(activeProfile);

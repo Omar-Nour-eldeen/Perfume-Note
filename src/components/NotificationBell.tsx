@@ -2,6 +2,7 @@ import { Bell, Check } from "lucide-react";
 import { useNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/lib/notifications";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Link } from "@tanstack/react-router";
+
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -22,8 +23,46 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
   const ar = language === "ar";
   const { user, profile } = useAuth();
   const { notifications, unreadCount } = useNotifications();
+  const queryClient = useQueryClient();
+
   
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
+
+  const handleNavigate = (linkString: string, notifType?: string) => {
+    setSelectedNotification(null);
+
+    // Non-admin: open chat widget
+    if (!profile?.is_admin && (linkString === "#chat" || linkString === "open_chat" || (!linkString && notifType === "new_chat_message"))) {
+      window.dispatchEvent(new Event("open-chat-widget"));
+      return;
+    }
+
+    // Admin chat notification
+    if (profile?.is_admin && notifType === "new_chat_message") {
+      let targetLink = linkString;
+      if (!targetLink || targetLink === "#chat" || targetLink === "open_chat") {
+        targetLink = "/admin/chat";
+      }
+
+      const onChatPage = window.location.pathname.startsWith("/admin/chat");
+
+      if (onChatPage) {
+        // Already on the chat page → dispatch event so the listener picks it up immediately
+        let sessionId: string | null = null;
+        if (targetLink.includes("sessionId=")) {
+          try { sessionId = new URL(targetLink, window.location.origin).searchParams.get("sessionId"); } catch { }
+        }
+        window.dispatchEvent(new CustomEvent("select-admin-chat-session", { detail: { sessionId } }));
+      } else {
+        // On a different page → full reload to the URL (sessionId in URL, picked up by Route.useSearch)
+        window.location.href = targetLink;
+      }
+      return;
+    }
+
+    if (!linkString) return;
+    window.location.href = linkString;
+  };
 
   if (!user) return null;
 
@@ -56,7 +95,10 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => markAllNotificationsAsRead(user.id, profile?.is_admin || false)}
+                onClick={async () => {
+                  await markAllNotificationsAsRead(user.id, profile?.is_admin || false);
+                  queryClient.invalidateQueries({ queryKey: ["notifications"] });
+                }}
                 className="h-auto p-0 text-xs text-primary hover:text-primary/80"
               >
                 <Check className="w-3 h-3 me-1" />
@@ -74,9 +116,10 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
                       "relative p-4 transition-colors cursor-pointer",
                       !notification.is_read ? "bg-primary/5" : "hover:bg-secondary/30"
                     )}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!notification.is_read) {
-                        markNotificationAsRead(notification.id);
+                        await markNotificationAsRead(notification.id);
+                        queryClient.invalidateQueries({ queryKey: ["notifications"] });
                       }
                       setSelectedNotification(notification);
                     }}
@@ -129,12 +172,12 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
           <div className="py-4 whitespace-pre-wrap text-sm text-foreground/90 leading-relaxed">
             {selectedNotification ? (ar ? selectedNotification.body_ar : selectedNotification.body_en) : ""}
           </div>
-          {selectedNotification?.link && (
+          {(selectedNotification?.link || selectedNotification?.type === "new_chat_message") && (
             <DialogFooter>
-              <Button asChild onClick={() => setSelectedNotification(null)}>
-                <Link to={selectedNotification.link}>
-                  {ar ? "عرض التفاصيل" : "View Details"}
-                </Link>
+              <Button onClick={() => handleNavigate(selectedNotification.link ?? "", selectedNotification.type)}>
+                {selectedNotification?.type === "new_chat_message" || selectedNotification?.link === "#chat"
+                  ? (ar ? "فتح المحادثة" : "Open Chat")
+                  : (ar ? "عرض التفاصيل" : "View Details")}
               </Button>
             </DialogFooter>
           )}

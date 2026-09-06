@@ -16,6 +16,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { EGYPT_GOVERNORATES, formatGovernorate, findGovernoratePair } from "@/lib/governorates";
 
 export const Route = createFileRoute("/account")({
+  validateSearch: (search: Record<string, unknown>): { orderId?: string; returnId?: string } => {
+    const res: { orderId?: string; returnId?: string } = {};
+    if (search["orderId"]) res.orderId = search["orderId"] as string;
+    if (search["returnId"]) res.returnId = search["returnId"] as string;
+    return res;
+  },
   component: AccountPage,
 });
 
@@ -24,6 +30,9 @@ function AccountPage() {
   const ar = language === "ar";
   const { user, profile, signOut, loading } = useAuth();
   const navigate = useNavigate();
+  const searchParams = Route.useSearch();
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+  const [highlightedReturnId, setHighlightedReturnId] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
@@ -56,6 +65,49 @@ function AccountPage() {
   const [editAddress, setEditAddress] = useState("");
   const [editGovernorate, setEditGovernorate] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const targetOrderId =
+      searchParams?.orderId ||
+      new URLSearchParams(window.location.search).get("orderId") ||
+      window.location.hash.replace("#order-", "");
+
+    const targetReturnId =
+      searchParams?.returnId ||
+      new URLSearchParams(window.location.search).get("returnId") ||
+      window.location.hash.replace("#return-", "");
+
+    if ((!targetOrderId && !targetReturnId) || ordersLoading) return;
+
+    const timer = setTimeout(() => {
+      let el: HTMLElement | null = null;
+      if (targetReturnId) {
+        el =
+          document.getElementById(`return-${targetReturnId}`) ||
+          (document.querySelector(`[data-return-id="${targetReturnId}"]`) as HTMLElement | null);
+      }
+      if (!el && targetOrderId) {
+        el =
+          document.getElementById(`order-${targetOrderId}`) ||
+          document.getElementById(`return-${targetOrderId}`) ||
+          (document.querySelector(`[data-order-id="${targetOrderId}"]`) as HTMLElement | null);
+      }
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (targetReturnId) setHighlightedReturnId(targetReturnId);
+        if (targetOrderId) setHighlightedOrderId(targetOrderId);
+
+        const highlightTimer = setTimeout(() => {
+          setHighlightedOrderId(null);
+          setHighlightedReturnId(null);
+        }, 4000);
+        return () => clearTimeout(highlightTimer);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [ordersLoading, searchParams?.orderId, searchParams?.returnId, orders, returns]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -195,9 +247,9 @@ function AccountPage() {
     if (!user) return;
 
     if (editPhone.trim()) {
-      const phoneRegex = /^[0-9]{10,15}$/;
+      const phoneRegex = /^01[0-5][0-9]{8}$/;
       if (!phoneRegex.test(editPhone.trim())) {
-        toast.error(ar ? "يرجى إدخال رقم هاتف صحيح (10-15 أرقام فقط)" : "Please enter a valid phone number (10-15 digits only)");
+        toast.error(ar ? "يرجى إدخال رقم هاتف مصري صحيح (01X XXXXXXXX)" : "Please enter a valid Egyptian phone number");
         return;
       }
     } else {
@@ -209,11 +261,17 @@ function AccountPage() {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ name: editName, phone: editPhone, address: editAddress, governorate: editGovernorate })
+        .update({
+          name: editName,
+          phone: editPhone.trim(),
+          address: editAddress,
+          governorate: editGovernorate,
+          phone_verified: true,
+        })
         .eq("id", user.id);
 
       if (error) throw error;
-      
+
       toast.success(ar ? "تم تحديث البيانات بنجاح" : "Profile updated successfully");
       await refreshProfile();
       setIsEditing(false);
@@ -324,7 +382,7 @@ function AccountPage() {
         .select()
         .single();
       if (error) throw error;
-      
+
       // Notify the user
       await createNotification({
         user_id: user!.id,
@@ -333,11 +391,11 @@ function AccountPage() {
         title_en: "Order Cancelled",
         body_ar: "تم إلغاء طلبك بنجاح.",
         body_en: "Your order has been cancelled successfully.",
-        link: "/account",
+        link: `/account?orderId=${orderId}`,
       });
 
       // Get customer name from the order
-      const customerName = orders.find((o) => o.id === orderId)?.customer_name || profile?.full_name || "عميل";
+      const customerName = orders.find((o) => o.id === orderId)?.customer_name || profile?.name || "عميل";
 
       // Notify the admin
       await createNotification({
@@ -347,7 +405,7 @@ function AccountPage() {
         title_en: "Order Cancelled",
         body_ar: `قام ${customerName} بإلغاء طلبه.`,
         body_en: `${customerName} cancelled their order.`,
-        link: "/admin/orders",
+        link: `/admin/orders?orderId=${orderId}`,
       });
 
       toast.success(ar ? "تم إلغاء الطلب بنجاح" : "Order cancelled successfully");
@@ -422,7 +480,7 @@ function AccountPage() {
       }
 
       // Notify the admin — link to returns tab directly
-      const customerName = profile?.full_name || "عميل";
+      const customerName = profile?.name || "عميل";
       await createNotification({
         user_id: "admin",
         type: "return_request",
@@ -430,7 +488,7 @@ function AccountPage() {
         title_en: editingReturnId ? "Return Request Updated" : "New Return Request",
         body_ar: editingReturnId ? `قام ${customerName} بتعديل طلب الاسترجاع الخاص به.` : `قام ${customerName} بطلب استرجاع لطلبه.`,
         body_en: editingReturnId ? `${customerName} updated their return request.` : `${customerName} requested a return for their order.`,
-        link: "/admin/orders?tab=returns",
+        link: `/admin/orders?tab=returns&orderId=${selectedOrderId}`,
       });
 
       // Notify the user
@@ -441,7 +499,7 @@ function AccountPage() {
         title_en: editingReturnId ? "Return Request Updated" : "Return Request Received",
         body_ar: editingReturnId ? "تم تحديث وإعادة إرسال طلبك بنجاح." : "تم استلام طلب الاسترجاع الخاص بك بنجاح وسيتم مراجعته في أقرب وقت.",
         body_en: editingReturnId ? "Your return request has been updated and resubmitted successfully." : "Your return request has been received and will be reviewed shortly.",
-        link: "/account",
+        link: `/account?orderId=${selectedOrderId}`,
       });
 
       toast.success(
@@ -480,14 +538,14 @@ function AccountPage() {
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ avatar_url: data.publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
-      
+
       toast.success(ar ? "تم تحديث الصورة بنجاح" : "Avatar updated successfully");
       await refreshProfile();
     } catch (error: any) {
@@ -525,7 +583,7 @@ function AccountPage() {
           {/* Sidebar */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm h-fit">
             <div className="flex flex-col items-center mb-6 relative">
-              <div 
+              <div
                 className="w-24 h-24 rounded-full bg-secondary border-2 border-border/50 overflow-hidden flex items-center justify-center mb-3 group cursor-pointer relative"
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -544,7 +602,7 @@ function AccountPage() {
                 {profile.name || (ar ? "مستخدم" : "User")}
               </h2>
             </div>
-            
+
             <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
               <h3 className="font-bold text-foreground">{ar ? "بيانات الحساب" : "Account Details"}</h3>
               {isEditing ? (
@@ -579,8 +637,8 @@ function AccountPage() {
               <div>
                 <span className="font-bold block text-muted-foreground mb-1">{ar ? "الهاتف" : "Phone"}</span>
                 {isEditing ? (
-                  <Input 
-                    value={editPhone} 
+                  <Input
+                    value={editPhone}
                     onChange={(e) => {
                       let val = e.target.value.replace(/\D/g, '');
                       val = val.slice(0, 11);
@@ -589,7 +647,7 @@ function AccountPage() {
                     onBlur={(e) => {
                       const val = e.target.value.trim();
                       const phoneRegex = /^01[0-5][0-9]{8}$/;
-                      
+
                       if (val && !phoneRegex.test(val)) {
                         toast.error(ar ? "رقم مصري غير صحيح (01X XXXXXXXX)" : "Invalid Egyptian phone (01X XXXXXXXX)");
                         setEditPhone("");
@@ -600,8 +658,8 @@ function AccountPage() {
                     pattern="01[0-5][0-9]{8}"
                     inputMode="numeric"
                     title="رقم مصري (01[0-5] رلم 8 أرقام)"
-                    className="h-8 text-sm" 
-                    dir="ltr" 
+                    className="h-8 text-sm"
+                    dir="ltr"
                   />
                 ) : (
                   <span dir="ltr" className="inline-block">{profile.phone || (ar ? "غير محدد" : "Not specified")}</span>
@@ -672,26 +730,33 @@ function AccountPage() {
                   {orders.map((order) => {
                     const items = orderItemsMap[order.id] || [];
                     return (
-                      <div key={order.id} className="py-5 first:pt-0 last:pb-0 flex flex-col gap-3">
+                      <div
+                        key={order.id}
+                        id={`order-${order.id}`}
+                        data-order-id={order.id}
+                        className={`py-5 first:pt-0 last:pb-0 flex flex-col gap-3 rounded-xl p-3 transition-all duration-500 ${highlightedOrderId === order.id
+                            ? "bg-primary/10 ring-2 ring-primary border border-primary shadow-lg"
+                            : ""
+                          }`}
+                      >
                         {/* Top row: date + status */}
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-muted-foreground">
                             {new Date(order.created_at).toLocaleDateString(ar ? "ar-EG" : "en-US", { year: "numeric", month: "long", day: "numeric" })}
                           </p>
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            order.status === "delivered" ? "bg-green-100 text-green-700" :
-                            order.status === "cancelled" ? "bg-red-100 text-red-700" :
-                            order.status === "shipped" ? "bg-blue-100 text-blue-700" :
-                            order.status === "returned" ? "bg-orange-100 text-orange-700" :
-                            "bg-yellow-100 text-yellow-700"
-                          }`}>
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${order.status === "delivered" ? "bg-green-100 text-green-700" :
+                              order.status === "cancelled" ? "bg-red-100 text-red-700" :
+                                order.status === "shipped" ? "bg-blue-100 text-blue-700" :
+                                  order.status === "returned" ? "bg-orange-100 text-orange-700" :
+                                    "bg-yellow-100 text-yellow-700"
+                            }`}>
                             {{
-                              pending:     ar ? "قيد الانتظار"  : "Pending",
-                              processing:  ar ? "جاري المعالجة" : "Processing",
-                              shipped:     ar ? "تم الشحن"      : "Shipped",
-                              delivered:   ar ? "تم التوصيل"   : "Delivered",
-                              returned:    ar ? "مُرتجع"        : "Returned",
-                              cancelled:   ar ? "ملغي"          : "Cancelled",
+                              pending: ar ? "قيد الانتظار" : "Pending",
+                              processing: ar ? "جاري المعالجة" : "Processing",
+                              shipped: ar ? "تم الشحن" : "Shipped",
+                              delivered: ar ? "تم التوصيل" : "Delivered",
+                              returned: ar ? "مُرتجع" : "Returned",
+                              cancelled: ar ? "ملغي" : "Cancelled",
                             }[order.status] ?? order.status}
                           </span>
                         </div>
@@ -700,7 +765,7 @@ function AccountPage() {
                         {(() => {
                           const returnableQty = getReturnableQty(order.id);
                           let newSubtotal = 0;
-                          
+
                           return (
                             <>
                               {items.length > 0 && (
@@ -709,7 +774,7 @@ function AccountPage() {
                                     const remaining = returnableQty[item.id] ?? item.quantity;
                                     const returned = item.quantity - remaining;
                                     newSubtotal += item.price * remaining;
-                                    
+
                                     return (
                                       <li key={item.id} className="flex justify-between text-sm">
                                         <div className="flex flex-col">
@@ -763,33 +828,33 @@ function AccountPage() {
                           );
                         })()}
 
-                          {(order.status === "delivered" || order.status === "returned") && (
-                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-border/50">
-                              <span className="font-semibold text-foreground">
-                                {ar ? "الاسترجاع" : "Returns"}
-                              </span>
-                              <span>
-                                {hasRejectedReturn(order.id) ? (
-                                  <span className="text-red-500 font-bold text-xs">{ar ? "تم الرفض (تواصل مع الدعم)" : "Rejected (Contact Support)"}</span>
-                                ) : hasActiveReturn(order.id) ? (
-                                  <span className="text-orange-600 font-bold text-xs">{ar ? "يوجد طلب نشط" : "Active return exists"}</span>
-                                ) : !withinReturnWindow(order) ? (
-                                  <span className="text-muted-foreground text-xs">{ar ? "انتهت فترة الاسترجاع المسموحة" : "Return window has expired"}</span>
-                                ) : !hasReturnableItems(order.id) ? (
-                                  <span className="text-muted-foreground text-xs">{ar ? "تم استرجاع الكمية" : "Items returned"}</span>
-                                ) : (
-                                  <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openReturnModal(order)}>
-                                    {ar ? "طلب استرجاع" : "Request Return"}
-                                  </Button>
-                                )}
-                              </span>
-                            </div>
-                          )}
+                        {(order.status === "delivered" || order.status === "returned") && (
+                          <div className="flex justify-between items-center mt-2 pt-2 border-t border-border/50">
+                            <span className="font-semibold text-foreground">
+                              {ar ? "الاسترجاع" : "Returns"}
+                            </span>
+                            <span>
+                              {hasRejectedReturn(order.id) ? (
+                                <span className="text-red-500 font-bold text-xs">{ar ? "تم الرفض (تواصل مع الدعم)" : "Rejected (Contact Support)"}</span>
+                              ) : hasActiveReturn(order.id) ? (
+                                <span className="text-orange-600 font-bold text-xs">{ar ? "يوجد طلب نشط" : "Active return exists"}</span>
+                              ) : !withinReturnWindow(order) ? (
+                                <span className="text-muted-foreground text-xs">{ar ? "انتهت فترة الاسترجاع المسموحة" : "Return window has expired"}</span>
+                              ) : !hasReturnableItems(order.id) ? (
+                                <span className="text-muted-foreground text-xs">{ar ? "تم استرجاع الكمية" : "Items returned"}</span>
+                              ) : (
+                                <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => openReturnModal(order)}>
+                                  {ar ? "طلب استرجاع" : "Request Return"}
+                                </Button>
+                              )}
+                            </span>
+                          </div>
+                        )}
                         {/* Actions */}
                         <div className="flex gap-2 justify-end items-center pt-2 border-t border-border mt-3">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="text-xs h-7 flex items-center gap-1.5"
                             onClick={() => {
                               setSelectedInvoiceOrder(order);
@@ -842,25 +907,33 @@ function AccountPage() {
                   {returns.map((ret) => {
                     const items = orderItemsMap[ret.order_id] || [];
                     return (
-                      <div key={ret.id} className="py-5 first:pt-0 last:pb-0 flex flex-col gap-3">
+                      <div
+                        key={ret.id}
+                        id={`return-${ret.id}`}
+                        data-return-id={ret.id}
+                        data-order-id={ret.order_id}
+                        className={`py-5 first:pt-0 last:pb-0 flex flex-col gap-3 rounded-xl p-3 transition-all duration-500 ${highlightedReturnId === ret.id || highlightedOrderId === ret.order_id
+                            ? "bg-primary/10 ring-2 ring-primary border border-primary shadow-lg"
+                            : ""
+                          }`}
+                      >
                         {/* Top row: date + status */}
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-muted-foreground">
                             {new Date(ret.created_at).toLocaleDateString(ar ? "ar-EG" : "en-US", { year: "numeric", month: "long", day: "numeric" })}
                           </p>
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            ret.status === "completed" ? "bg-green-100 text-green-700" :
-                            ret.status === "approved" ? "bg-orange-100 text-orange-700" :
-                            ret.status === "received" ? "bg-blue-100 text-blue-700" :
-                            ret.status === "rejected" ? "bg-red-100 text-red-700" :
-                            "bg-yellow-100 text-yellow-700"
-                          }`}>
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ${ret.status === "completed" ? "bg-green-100 text-green-700" :
+                              ret.status === "approved" ? "bg-orange-100 text-orange-700" :
+                                ret.status === "received" ? "bg-blue-100 text-blue-700" :
+                                  ret.status === "rejected" ? "bg-red-100 text-red-700" :
+                                    "bg-yellow-100 text-yellow-700"
+                            }`}>
                             {{
-                              pending:  ar ? "قيد المراجعة" : "Pending",
+                              pending: ar ? "قيد المراجعة" : "Pending",
                               approved: ar ? "تمت الموافقة" : "Approved",
                               received: ar ? "تم الاستلام" : "Received",
                               completed: ar ? "مكتمل" : "Completed",
-                              rejected: ar ? "مرفوض"       : "Rejected",
+                              rejected: ar ? "مرفوض" : "Rejected",
                               reopened: ar ? "تم إعادة الفتح للتعديل" : "Reopened (Needs Edit)",
                               cancelled: ar ? "ملغى" : "Cancelled",
                             }[ret.status] ?? ret.status}
@@ -869,10 +942,10 @@ function AccountPage() {
 
                         {/* Products list */}
                         {(() => {
-                          const displayItems = (ret.status === "received" || ret.status === "completed") 
-                            ? (ret.received_items || ret.returned_items || items) 
+                          const displayItems = (ret.status === "received" || ret.status === "completed")
+                            ? (ret.received_items || ret.returned_items || items)
                             : (ret.returned_items || items);
-                          
+
                           const filteredItems = displayItems.filter((item: any) => item.quantity > 0);
 
                           if (filteredItems.length === 0) return null;
@@ -911,7 +984,7 @@ function AccountPage() {
                               </p>
                             )}
                           </div>
-                          
+
                           {ret.status === "rejected" && ret.rejection_reason && (
                             <div className="bg-red-50 p-2.5 rounded-md mt-1 border border-red-100">
                               <p className="text-xs text-red-700">
@@ -947,8 +1020,8 @@ function AccountPage() {
               {ar ? "طلب استرجاع للمنتج" : "Request Return & Refund"}
             </h3>
             <p className="text-sm text-muted-foreground">
-              {ar 
-                ? "عند الموافقة على طلب الاسترجاع، سيتم شحن رصيد المحفظة الخاص بك بالقيمة المستردة تلقائياً." 
+              {ar
+                ? "عند الموافقة على طلب الاسترجاع، سيتم شحن رصيد المحفظة الخاص بك بالقيمة المستردة تلقائياً."
                 : "Upon approval, the refund amount will be credited to your wallet balance."}
             </p>
             <div>
@@ -1015,7 +1088,7 @@ function AccountPage() {
                 <span className="font-bold text-foreground">{ar ? "المبلغ المسترد المتوقع:" : "Expected Refund:"}</span>
                 <span className="font-black text-primary">{returnAmount.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
               </div>
-              
+
               <label className="block text-sm font-semibold text-muted-foreground mb-1">
                 {ar ? "سبب الاسترجاع" : "Reason for Return"}
               </label>
@@ -1027,7 +1100,7 @@ function AccountPage() {
                 placeholder={ar ? "يرجى كتابة سبب تفصيلي..." : "Please write a reason..."}
                 className="w-full rounded-md border border-border bg-background p-2.5 text-foreground text-sm mb-4"
               />
-              
+
               <label className="block text-sm font-semibold text-muted-foreground mb-1">
                 {ar ? "صور المنتج (بحد أقصى 3 صور)" : "Product Images (Max 3)"}
               </label>
@@ -1060,8 +1133,8 @@ function AccountPage() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button 
-                className="flex-1 bg-primary text-white" 
+              <Button
+                className="flex-1 bg-primary text-white"
                 onClick={submitReturnRequest}
                 disabled={uploadingReturnImage || returnImageFiles.length === 0 || !returnReason.trim() || returnAmount <= 0}
               >
@@ -1095,7 +1168,7 @@ function AccountPage() {
                   <p className="text-sm">{selectedInvoiceOrder.address}, {selectedInvoiceOrder.governorate}</p>
                 </div>
               </div>
-              
+
               <table className="w-full text-start mb-8 border-collapse">
                 <thead>
                   <tr className="border-b-2 border-gray-200">

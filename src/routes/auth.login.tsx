@@ -100,10 +100,7 @@ function LoginPage() {
         console.warn("Profile sync after login failed:", profileError);
       }
 
-      if (
-        data.user.app_metadata?.provider === "google" &&
-        (!prof || !prof.phone || !prof.governorate || !prof.address)
-      ) {
+      if (!prof || !prof.phone || !prof.governorate || !prof.address) {
         navigate({ to: "/auth/complete-profile" });
       } else {
         navigate({ to: "/account" });

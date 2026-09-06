@@ -12,6 +12,7 @@ create table public.profiles (
   avatar_url text,
   balance numeric(10, 2) not null default 0.00,
   is_admin boolean not null default false,
+  phone_verified boolean not null default false,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -430,3 +431,65 @@ create policy "Users can upload avatars" on storage.objects for insert with chec
 
 create policy "Public Access to products" on storage.objects for select using (bucket_id = 'products');
 create policy "Only admin can upload products" on storage.objects for insert with check (bucket_id = 'products' and exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true));
+
+-- NOTIFICATIONS
+create table if not exists public.notifications (
+  id uuid default uuid_generate_v4() primary key,
+  user_id text not null, -- Stores user UUID or 'admin'
+  type text not null,
+  title_ar text not null,
+  title_en text not null,
+  body_ar text not null,
+  body_en text not null,
+  is_read boolean not null default false,
+  link text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Ensure user_id column is TEXT (in case it was previously created as UUID)
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns 
+    where table_schema = 'public' 
+      and table_name = 'notifications' 
+      and column_name = 'user_id' 
+      and data_type = 'uuid'
+  ) then
+    alter table public.notifications alter column user_id type text using user_id::text;
+  end if;
+end $$;
+
+alter table public.notifications enable row level security;
+
+-- Drop policies if existing to avoid duplication error on re-run
+drop policy if exists "Anyone can insert notifications" on public.notifications;
+drop policy if exists "Users and admin can view notifications" on public.notifications;
+drop policy if exists "Users and admin can update notifications" on public.notifications;
+drop policy if exists "Users and admin can delete notifications" on public.notifications;
+
+-- 1. Anyone (guests and authenticated users) can insert notifications (needed for orders/chats/returns)
+create policy "Anyone can insert notifications" on public.notifications
+  for insert with check (true);
+
+-- 2. Users can view their own notifications OR admin notifications if they are an admin
+create policy "Users and admin can view notifications" on public.notifications
+  for select using (
+    user_id = auth.uid()::text 
+    or (user_id = 'admin' and exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true))
+  );
+
+-- 3. Users can update their own notifications OR admin notifications if they are an admin
+create policy "Users and admin can update notifications" on public.notifications
+  for update using (
+    user_id = auth.uid()::text 
+    or (user_id = 'admin' and exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true))
+  );
+
+-- 4. Users can delete their own notifications OR admin notifications if they are an admin
+create policy "Users and admin can delete notifications" on public.notifications
+  for delete using (
+    user_id = auth.uid()::text 
+    or (user_id = 'admin' and exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true))
+  );
+

@@ -113,6 +113,7 @@ function RegisterPage() {
         phone: phone.trim(),
         governorate: governorate.trim(),
         address: address.trim(),
+        phone_verified: true,
       });
 
       if (profileError) {

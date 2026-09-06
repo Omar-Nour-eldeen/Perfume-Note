@@ -10,14 +10,20 @@ import type { ChatMessage, Profile, Order } from "@/lib/types";
 import { Send, User, Phone, Mail, ShoppingBag, Clock, Package } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { createNotification } from "@/lib/notifications";
 
 export const Route = createFileRoute("/admin/chat")({
+  validateSearch: (search: Record<string, unknown>): { sessionId?: string } => {
+    return search["sessionId"] ? { sessionId: search["sessionId"] as string } : {};
+  },
   component: AdminChat,
 });
 
 interface SessionInfo {
   sessionId: string;
   userId: string | null;
+  customerName?: string | null;
+  customerEmail?: string | null;
   lastMessage: string;
   lastTime: string;
 }
@@ -31,6 +37,7 @@ function AdminChat() {
   const { language } = useI18n();
   const ar = language === "ar";
   const { user } = useAuth();
+  const { sessionId } = Route.useSearch();
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -38,6 +45,89 @@ function AdminChat() {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const activeSessionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
+  const loadSessionData = async (targetSessionId: string) => {
+    setActiveSession(targetSessionId);
+    setCustomerInfo(null);
+
+    try {
+      // Fetch messages
+      const { data: msgs, error: msgErr } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .eq("session_id", targetSessionId)
+        .order("created_at", { ascending: true });
+
+      if (msgErr) throw msgErr;
+      setMessages((msgs as ChatMessage[]) || []);
+
+      // Extract user ID from session_id pattern "user_<uuid>"
+      const userId = targetSessionId.startsWith("user_")
+        ? targetSessionId.replace("user_", "")
+        : null;
+
+      if (userId) {
+        const [profileRes, ordersRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", userId)
+            .maybeSingle(),
+          supabase
+            .from("orders")
+            .select("*")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(5),
+        ]);
+
+        setCustomerInfo({
+          profile: (profileRes.data as Profile) || null,
+          orders: (ordersRes.data as Order[]) || [],
+        });
+      } else {
+        setCustomerInfo({
+          profile: null,
+          orders: [],
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Load session from search query param (from notifications)
+  useEffect(() => {
+    if (sessionId) {
+      loadSessionData(sessionId);
+    }
+  }, [sessionId]);
+
+  // Initial load auto-select first session if no active session selected yet
+  useEffect(() => {
+    if (!sessionId && sessions.length > 0 && !activeSession) {
+      loadSessionData(sessions[0].sessionId);
+    }
+  }, [sessions, sessionId, activeSession]);
+
+  // Listen for notification click events to open a specific session
+  useEffect(() => {
+    const handleSelectSession = (e: Event) => {
+      const { sessionId: targetId } = (e as CustomEvent).detail;
+      if (targetId) {
+        loadSessionData(targetId);
+      }
+    };
+    window.addEventListener("select-admin-chat-session", handleSelectSession);
+    return () => window.removeEventListener("select-admin-chat-session", handleSelectSession);
+  }, []);
+
+  // Realtime subscription for incoming messages
   useEffect(() => {
     fetchActiveSessions();
 
@@ -56,7 +146,7 @@ function AdminChat() {
           // Refresh sessions list
           fetchActiveSessions();
 
-          if (activeSession && newMsg.session_id === activeSession) {
+          if (activeSessionRef.current && newMsg.session_id === activeSessionRef.current) {
             setMessages((prev) => {
               if (prev.find((m) => m.id === newMsg.id)) return prev;
               // Remove temporary optimistic message with same content
@@ -71,7 +161,7 @@ function AdminChat() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeSession]);
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -88,12 +178,16 @@ function AdminChat() {
 
       // Build unique sessions with last message info
       const sessionMap = new Map<string, SessionInfo>();
+      const userIdsToFetch = new Set<string>();
+
       for (const msg of data || []) {
         if (!sessionMap.has(msg.session_id)) {
           // Extract user ID from session_id pattern "user_<uuid>"
           const userId = msg.session_id.startsWith("user_")
             ? msg.session_id.replace("user_", "")
             : (msg.sender_id || null);
+
+          if (userId) userIdsToFetch.add(userId);
 
           sessionMap.set(msg.session_id, {
             sessionId: msg.session_id,
@@ -103,6 +197,25 @@ function AdminChat() {
           });
         }
       }
+
+      if (userIdsToFetch.size > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, email")
+          .in("id", Array.from(userIdsToFetch));
+
+        if (profiles) {
+          const profileMap = new Map(profiles.map((p) => [p.id, p]));
+          for (const session of sessionMap.values()) {
+            if (session.userId && profileMap.has(session.userId)) {
+              const p = profileMap.get(session.userId)!;
+              session.customerName = p.name;
+              session.customerEmail = p.email;
+            }
+          }
+        }
+      }
+
       setSessions(Array.from(sessionMap.values()));
     } catch (err) {
       console.error(err);
@@ -110,51 +223,8 @@ function AdminChat() {
   };
 
   const fetchSessionMessages = async (session: SessionInfo) => {
-    if (activeSession === session.sessionId) {
-      setActiveSession(null);
-      setMessages([]);
-      setCustomerInfo(null);
-      return;
-    }
-
-    setActiveSession(session.sessionId);
-    setCustomerInfo(null);
-
-    try {
-      // Fetch messages
-      const { data: msgs, error: msgErr } = await supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("session_id", session.sessionId)
-        .order("created_at", { ascending: true });
-
-      if (msgErr) throw msgErr;
-      setMessages((msgs as ChatMessage[]) || []);
-
-      // Fetch customer profile and orders if we have a user ID
-      if (session.userId) {
-        const [profileRes, ordersRes] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", session.userId)
-            .single(),
-          supabase
-            .from("orders")
-            .select("*")
-            .eq("user_id", session.userId)
-            .order("created_at", { ascending: false })
-            .limit(5),
-        ]);
-
-        setCustomerInfo({
-          profile: (profileRes.data as Profile) || null,
-          orders: (ordersRes.data as Order[]) || [],
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    if (activeSession === session.sessionId) return;
+    await loadSessionData(session.sessionId);
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -181,6 +251,7 @@ function AdminChat() {
     };
     setMessages((prev) => [...prev, optimisticMsg]);
 
+    const currentInput = input;
     setInput("");
 
     const { error } = await supabase.from("chat_messages").insert(payload);
@@ -188,6 +259,17 @@ function AdminChat() {
       console.error(error);
       toast.error(ar ? "فشل إرسال الرسالة: " + error.message : "Failed to send: " + error.message);
       setMessages((prev) => prev.filter(m => m.id !== messageId));
+    } else if (clientId) {
+      // Notify customer of new support message
+      await createNotification({
+        user_id: clientId,
+        type: "new_chat_message",
+        title_ar: "رسالة جديدة من الدعم",
+        title_en: "New message from support",
+        body_ar: currentInput,
+        body_en: currentInput,
+        link: "#chat",
+      });
     }
   };
 
@@ -249,7 +331,7 @@ function AdminChat() {
                         <User className="h-3.5 w-3.5 text-primary" />
                       </div>
                       <span className={`text-xs font-bold truncate ${activeSession === session.sessionId ? "text-primary" : "text-foreground/80"}`}>
-                        {session.userId ? session.userId.slice(0, 8) + "..." : session.sessionId.slice(0, 8) + "..."}
+                        {session.customerName || session.customerEmail || (session.userId ? session.userId.slice(0, 8) + "..." : session.sessionId.slice(0, 8) + "...")}
                       </span>
                     </div>
                     <p className="text-[11px] text-muted-foreground truncate ps-9">

@@ -8,28 +8,106 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, ReceiptText, Printer } from "lucide-react";
+import { MessageSquare, ReceiptText, Printer, RotateCcw } from "lucide-react";
 import type { Order, OrderItem, ReturnRequest } from "@/lib/types";
 import { toast } from "sonner";
 import { createNotification } from "@/lib/notifications";
 
 export const Route = createFileRoute("/admin/orders")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    tab: (search.tab as string) || "orders",
-  }),
+  validateSearch: (search: Record<string, unknown>): { tab?: string; orderId?: string; returnId?: string } => {
+    const res: { tab?: string; orderId?: string; returnId?: string } = {};
+    if (search["tab"]) res.tab = search["tab"] as string;
+    if (search["orderId"]) res.orderId = search["orderId"] as string;
+    if (search["returnId"]) res.returnId = search["returnId"] as string;
+    return res;
+  },
   component: AdminOrders,
 });
 
 function AdminOrders() {
   const { language } = useI18n();
   const ar = language === "ar";
-  const { tab } = Route.useSearch();
+  const { tab, orderId, returnId } = Route.useSearch();
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+  const [highlightedReturnId, setHighlightedReturnId] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [activeTab, setActiveTab] = useState<"orders" | "returns">(tab === "returns" ? "returns" : "orders");
   const [loading, setLoading] = useState(true);
   const [orderItemsMap, setOrderItemsMap] = useState<Record<string, OrderItem[]>>({});
   const [orderEmailsMap, setOrderEmailsMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchTab = urlParams.get("tab") || tab;
+    const searchReturnId = urlParams.get("returnId") || returnId;
+    const searchOrderId = urlParams.get("orderId") || orderId;
+
+    const isReturnTarget =
+      searchReturnId ||
+      searchTab === "returns" ||
+      returnId ||
+      tab === "returns" ||
+      (searchOrderId && returns.some((r) => r.order_id === searchOrderId));
+
+    if (isReturnTarget) {
+      setActiveTab("returns");
+    } else if (searchTab === "orders" || tab === "orders") {
+      setActiveTab("orders");
+    }
+  }, [tab, returnId, orderId, returns]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetOrderId =
+      orderId ||
+      urlParams.get("orderId") ||
+      window.location.hash.replace("#order-", "");
+
+    const targetReturnId =
+      returnId ||
+      urlParams.get("returnId") ||
+      window.location.hash.replace("#return-", "");
+
+    if ((!targetOrderId && !targetReturnId) || loading) return;
+
+    const searchTab = urlParams.get("tab") || tab;
+    if (targetReturnId || searchTab === "returns" || (targetOrderId && returns.some((r) => r.order_id === targetOrderId))) {
+      setActiveTab("returns");
+    }
+
+    const timer = setTimeout(() => {
+      let el: HTMLElement | null = null;
+      if (targetReturnId) {
+        el =
+          document.getElementById(`admin-return-${targetReturnId}`) ||
+          document.getElementById(`admin-return-desktop-${targetReturnId}`) ||
+          (document.querySelector(`[data-return-id="${targetReturnId}"]`) as HTMLElement | null);
+      }
+      if (!el && targetOrderId) {
+        el =
+          document.getElementById(`admin-return-${targetOrderId}`) ||
+          document.getElementById(`admin-return-desktop-${targetOrderId}`) ||
+          document.getElementById(`admin-order-${targetOrderId}`) ||
+          document.getElementById(`admin-order-desktop-${targetOrderId}`) ||
+          (document.querySelector(`[data-order-id="${targetOrderId}"]`) as HTMLElement | null);
+      }
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (targetReturnId) setHighlightedReturnId(targetReturnId);
+        if (targetOrderId) setHighlightedOrderId(targetOrderId);
+
+        const highlightTimer = setTimeout(() => {
+          setHighlightedOrderId(null);
+          setHighlightedReturnId(null);
+        }, 4000);
+        return () => clearTimeout(highlightTimer);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [loading, orderId, returnId, activeTab, orders, returns]);
 
   // Message Modal State
   const [messageModalOpen, setMessageModalOpen] = useState(false);
@@ -214,7 +292,7 @@ function AdminOrders() {
           title_en: "Order Status Updated",
           body_ar: `تم تحديث حالة طلبك إلى: ${labelAr}`,
           body_en: `Your order status has been updated to: ${labelEn}`,
-          link: "/account",
+          link: `/account?orderId=${order.id}`,
         });
       }
 
@@ -380,7 +458,7 @@ function AdminOrders() {
           title_en: notifTitleEn,
           body_ar: notifBodyAr,
           body_en: notifBodyEn,
-          link: "/account",
+          link: `/account?orderId=${ret.order_id}`,
         });
       }
 
@@ -448,7 +526,7 @@ function AdminOrders() {
         title_en: isEdit ? "Return Receipt Updated" : "Your Return Has Been Received",
         body_ar: `تم ${isEdit ? "تعديل" : ""} استلام المنتجات التالية:\n• ${itemListAr}\nالمبلغ المسترد: ${newRefundAmount.toFixed(2)} ج.م`,
         body_en: `The following items were ${isEdit ? "updated in" : ""} received:\n• ${itemListEn}\nRefund amount: ${newRefundAmount.toFixed(2)} EGP`,
-        link: "/account",
+        link: `/account?orderId=${selectedReturnToReceive.order_id}`,
       });
 
       toast.success(ar ? "تم تأكيد الاستلام بنجاح" : "Received confirmed successfully");
@@ -502,7 +580,7 @@ function AdminOrders() {
         title_en: "New message from support",
         body_ar: messageBody,
         body_en: messageBody,
-        link: "", // Assuming the chat widget is accessible globally, they can just open it
+        link: "#chat",
       });
 
       toast.success(ar ? "تم إرسال الرسالة بنجاح للعميل" : "Message sent successfully to customer");
@@ -537,17 +615,27 @@ function AdminOrders() {
           <div className="flex gap-2 border-b border-border">
             <button
               onClick={() => setActiveTab("orders")}
-              className={`pb-3 px-4 text-sm font-bold border-b-2 transition ${activeTab === "orders" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                }`}
+              className={`pb-3 px-4 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
+                activeTab === "orders" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+              }`}
             >
-              {ar ? "طلبات العملاء" : "Customer Orders"}
+              <span>{ar ? "طلبات العملاء" : "Customer Orders"}</span>
+              <span className="text-xs bg-secondary text-foreground/80 px-2 py-0.5 rounded-full font-mono">{orders.length}</span>
             </button>
             <button
               onClick={() => setActiveTab("returns")}
-              className={`pb-3 px-4 text-sm font-bold border-b-2 transition ${activeTab === "returns" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                }`}
+              className={`pb-3 px-4 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
+                activeTab === "returns" ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+              }`}
             >
-              {ar ? "طلبات الاسترجاع" : "Return Requests"}
+              <span>{ar ? "طلبات الاسترجاع" : "Return Requests"}</span>
+              {returns.length > 0 && (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
+                  returns.some(r => r.status === 'pending') ? 'bg-red-500 text-white animate-pulse' : 'bg-secondary text-foreground/80'
+                }`}>
+                  {returns.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -561,8 +649,32 @@ function AdminOrders() {
                   <p className="p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد طلبات بعد" : "No orders yet"}</p>
                 ) : orders.map((order) => {
                   const items = orderItemsMap[order.id] || [];
+                  const associatedReturn = returns.find((r) => r.order_id === order.id);
+                  const goToReturn = () => {
+                    setActiveTab("returns");
+                    if (associatedReturn) setHighlightedReturnId(associatedReturn.id);
+                    setHighlightedOrderId(order.id);
+                    setTimeout(() => {
+                      const el =
+                        (associatedReturn && (document.getElementById(`admin-return-${associatedReturn.id}`) || document.getElementById(`admin-return-desktop-${associatedReturn.id}`))) ||
+                        document.getElementById(`admin-return-${order.id}`) ||
+                        document.getElementById(`admin-return-desktop-${order.id}`) ||
+                        (document.querySelector(`[data-order-id="${order.id}"]`) as HTMLElement | null);
+                      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 200);
+                  };
+
                   return (
-                    <div key={order.id} className="p-4 space-y-3">
+                    <div
+                      key={order.id}
+                      id={`admin-order-${order.id}`}
+                      data-order-id={order.id}
+                      className={`p-4 space-y-3 transition-all duration-500 ${
+                        highlightedOrderId === order.id
+                          ? "bg-primary/10 ring-2 ring-primary border border-primary shadow-lg rounded-xl"
+                          : ""
+                      }`}
+                    >
                       {/* Header row: name + status badge */}
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -573,12 +685,29 @@ function AdminOrders() {
                           <p className="text-xs text-muted-foreground">{order.phone}</p>
                         </div>
                         <div className="shrink-0">
-                          {order.status === "cancelled" ? (
+                          {associatedReturn ? (
+                            <button
+                              type="button"
+                              onClick={goToReturn}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 transition cursor-pointer"
+                              title={ar ? "انتقال إلى طلب الاسترجاع" : "Go to Return Request"}
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>{ar ? "طلب استرجاع" : "Return Request"}</span>
+                            </button>
+                          ) : order.status === "cancelled" ? (
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">{ar ? "ملغي" : "Cancelled"}</span>
                           ) : order.status === "delivered" ? (
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">{ar ? "تم التوصيل" : "Delivered"}</span>
                           ) : order.status === "returned" ? (
-                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">{ar ? "مُرتجع" : "Returned"}</span>
+                            <button
+                              type="button"
+                              onClick={goToReturn}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 transition cursor-pointer"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>{ar ? "مُرتجع" : "Returned"}</span>
+                            </button>
                           ) : order.status === "shipped" ? (
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">{ar ? "تم الشحن" : "Shipped"}</span>
                           ) : order.status === "processing" ? (
@@ -617,6 +746,17 @@ function AdminOrders() {
 
                       {/* Actions */}
                       <div className="flex flex-wrap gap-2 border-t border-border/40 pt-2">
+                        {associatedReturn && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px] px-3 font-bold border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 flex items-center gap-1 flex-1"
+                            onClick={goToReturn}
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            {ar ? "عرض الاسترجاع" : "View Return"}
+                          </Button>
+                        )}
                         {order.status !== "cancelled" && order.status !== "delivered" && order.status !== "returned" && (
                           <>
                             <Button
@@ -694,8 +834,30 @@ function AdminOrders() {
                 <tbody className="divide-y divide-border text-sm">
                   {orders.map((order) => {
                     const items = orderItemsMap[order.id] || [];
+                    const associatedReturn = returns.find((r) => r.order_id === order.id);
+                    const goToReturn = () => {
+                      setActiveTab("returns");
+                      if (associatedReturn) setHighlightedReturnId(associatedReturn.id);
+                      setHighlightedOrderId(order.id);
+                      setTimeout(() => {
+                        const el =
+                          (associatedReturn && (document.getElementById(`admin-return-${associatedReturn.id}`) || document.getElementById(`admin-return-desktop-${associatedReturn.id}`))) ||
+                          document.getElementById(`admin-return-${order.id}`) ||
+                          document.getElementById(`admin-return-desktop-${order.id}`) ||
+                          (document.querySelector(`[data-order-id="${order.id}"]`) as HTMLElement | null);
+                        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }, 200);
+                    };
+
                     return (
-                      <tr key={order.id} className="hover:bg-secondary/10 align-top">
+                      <tr
+                        key={order.id}
+                        id={`admin-order-desktop-${order.id}`}
+                        data-order-id={order.id}
+                        className={`hover:bg-secondary/10 align-top transition-all duration-500 ${
+                          highlightedOrderId === order.id ? "bg-primary/10 ring-2 ring-primary" : ""
+                        }`}
+                      >
                         <td className="p-4">
                           <p className="font-bold text-foreground">{order.customer_name}</p>
                           {order.user_id && orderEmailsMap[order.user_id] && (
@@ -757,7 +919,17 @@ function AdminOrders() {
                           {order.payment_method}
                         </td>
                         <td className="p-4">
-                          {order.status === "cancelled" ? (
+                          {associatedReturn ? (
+                            <button
+                              type="button"
+                              onClick={goToReturn}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 transition cursor-pointer"
+                              title={ar ? "انتقال إلى طلب الاسترجاع" : "Go to Return Request"}
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>{ar ? "طلب استرجاع" : "Return Request"}</span>
+                            </button>
+                          ) : order.status === "cancelled" ? (
                             <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
                               {ar ? "ملغي" : "Cancelled"}
                             </span>
@@ -766,9 +938,14 @@ function AdminOrders() {
                               {ar ? "تم التوصيل" : "Delivered"}
                             </span>
                           ) : order.status === "returned" ? (
-                            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
-                              {ar ? "مُرتجع" : "Returned"}
-                            </span>
+                            <button
+                              type="button"
+                              onClick={goToReturn}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 hover:bg-purple-200 transition cursor-pointer"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              <span>{ar ? "مُرتجع" : "Returned"}</span>
+                            </button>
                           ) : (
                             <div className="flex flex-col gap-1.5">
                               <div className="flex gap-1">
@@ -802,6 +979,17 @@ function AdminOrders() {
                         </td>
                         <td className="p-4 text-start">
                           <div className="flex flex-col gap-2">
+                            {associatedReturn && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs h-7 flex items-center justify-center gap-1.5 border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold"
+                                onClick={goToReturn}
+                              >
+                                <RotateCcw className="w-3 h-3" />
+                                {ar ? "عرض الاسترجاع" : "View Return"}
+                              </Button>
+                            )}
                             <Button
                               variant="default"
                               size="sm"
@@ -869,7 +1057,17 @@ function AdminOrders() {
                     pending: "bg-yellow-100 text-yellow-700",
                   };
                   return (
-                    <div key={ret.id} className="p-4 space-y-3">
+                    <div
+                      key={ret.id}
+                      id={`admin-return-${ret.id}`}
+                      data-return-id={ret.id}
+                      data-order-id={ret.order_id}
+                      className={`p-4 space-y-3 transition-all duration-500 ${
+                        highlightedReturnId === ret.id || highlightedOrderId === ret.order_id || highlightedOrderId === ret.id
+                          ? "bg-primary/10 ring-2 ring-primary border border-primary shadow-lg rounded-xl"
+                          : ""
+                      }`}
+                    >
                       {/* Header: customer + status */}
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -978,7 +1176,17 @@ function AdminOrders() {
                   {returns.map((ret: any) => {
                     const retItems = orderItemsMap[ret.order_id] || [];
                     return (
-                      <tr key={ret.id} className="hover:bg-secondary/10 align-top">
+                      <tr
+                        key={ret.id}
+                        id={`admin-return-desktop-${ret.id}`}
+                        data-return-id={ret.id}
+                        data-order-id={ret.order_id}
+                        className={`hover:bg-secondary/10 align-top transition-all duration-500 ${
+                          highlightedReturnId === ret.id || highlightedOrderId === ret.order_id || highlightedOrderId === ret.id
+                            ? "bg-primary/10 ring-2 ring-primary"
+                            : ""
+                        }`}
+                      >
                         <td className="p-4">
                           <p className="font-bold text-foreground">{ret.profiles?.name || ret.orders?.customer_name || "—"}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{ret.profiles?.email || "—"}</p>

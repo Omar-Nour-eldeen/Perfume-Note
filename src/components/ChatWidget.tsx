@@ -24,7 +24,7 @@ function playNotificationSound() {
 export function ChatWidget() {
   const { language } = useI18n();
   const ar = language === "ar";
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -33,6 +33,17 @@ export function ChatWidget() {
 
   // Session ID is always user.id for logged-in users
   const sessionId = user ? `user_${user.id}` : null;
+
+  // Listen for external open chat events (e.g. clicking chat notifications)
+  useEffect(() => {
+    const handleOpenChat = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener("open-chat-widget", handleOpenChat);
+    return () => {
+      window.removeEventListener("open-chat-widget", handleOpenChat);
+    };
+  }, []);
 
   // Fetch messages when user logs in
   useEffect(() => {
@@ -180,14 +191,15 @@ export function ChatWidget() {
       return;
     }
 
+    const customerName = profile?.full_name || profile?.name || user?.email || "عميل";
     await createNotification({
       user_id: "admin",
       type: "new_chat_message",
-      title_ar: "رسالة محادثة جديدة",
-      title_en: "New chat message",
+      title_ar: `رسالة من ${customerName}`,
+      title_en: `Message from ${customerName}`,
       body_ar: input,
       body_en: input,
-      link: "/admin/chat",
+      link: `/admin/chat?sessionId=${sessionId}`,
     });
   };
 
