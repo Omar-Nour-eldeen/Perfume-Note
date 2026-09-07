@@ -88,6 +88,8 @@ export interface Order {
   governorate: string;
   discount_code: string | null;
   payment_method: string;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at: string;
   delivered_at: string | null;
 }

@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingCart, Minus, Plus, Trash2, Loader2, CheckCircle2, ChevronRight, Gift, Percent, Tag, UserCircle } from "lucide-react";
+import { ShoppingCart, Minus, Plus, Trash2, Loader2, CheckCircle2, ChevronRight, Gift, Percent, Tag, UserCircle, MapPin } from "lucide-react";
 import { useCartStore } from "@/lib/cart-store";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -18,6 +18,7 @@ import { createNotification } from "@/lib/notifications";
 import type { ShippingZone, DiscountCode } from "@/lib/types";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
+import { LocationPickerModal } from "@/components/checkout/LocationPickerModal";
 
 export function CartDrawer() {
   const { language } = useI18n();
@@ -36,10 +37,71 @@ export function CartDrawer() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [useWallet, setUseWallet] = useState(false);
   // Track if user manually changed the shipping zone this session
   const [zoneManuallyChanged, setZoneManuallyChanged] = useState(false);
+
+  const handleLocateUser = () => {
+    // Open map modal immediately for responsive UI
+    setLocationModalOpen(true);
+
+    if (!navigator.geolocation) {
+      toast.info(ar ? "المتصفح لا يدعم تحديد الموقع التلقائي. يمكنك تحديده على الخريطة." : "Browser does not support auto-location. You can select it on the map.");
+      return;
+    }
+
+    setIsLocating(true);
+    let resolved = false;
+
+    const onSuccess = (lat: number, lng: number) => {
+      if (resolved) return;
+      resolved = true;
+      setIsLocating(false);
+      setLatitude(lat);
+      setLongitude(lng);
+    };
+
+    const onError = () => {
+      if (resolved) return;
+      resolved = true;
+      setIsLocating(false);
+    };
+
+    // Stage 1: High accuracy with cached position support (instant response)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        onSuccess(position.coords.latitude, position.coords.longitude);
+      },
+      (error) => {
+        console.warn("High accuracy geolocation failed, trying low accuracy...", error);
+        // Stage 2: Fallback to low accuracy (works on Desktop/PC via Wi-Fi/IP)
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            onSuccess(position.coords.latitude, position.coords.longitude);
+          },
+          (err) => {
+            console.warn("Low accuracy geolocation failed:", err);
+            onError();
+          },
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 3500, maximumAge: 300000 }
+    );
+  };
+
+  const handleLocationConfirmed = (locData: { address: string; lat: number; lng: number }) => {
+    if (locData.address) {
+      setAddress(locData.address);
+    }
+    setLatitude(locData.lat);
+    setLongitude(locData.lng);
+  };
 
   // Real-time: auto-refresh wallet balance when profile changes in DB
   useEffect(() => {
@@ -339,6 +401,8 @@ export function CartDrawer() {
             governorate: ar ? selectedZone.name_ar : selectedZone.name_en,
             discount_code: activeCoupon?.code || null,
             payment_method: "Cash on Delivery",
+            latitude: latitude || null,
+            longitude: longitude || null,
           })
           .select()
           .single();
@@ -607,14 +671,36 @@ export function CartDrawer() {
                 placeholder={ar ? "رقم الهاتف" : "Phone Number"}
                 className="w-full text-xs rounded-lg border border-border bg-card px-3 py-2.5 text-foreground outline-none"
               />
-              <input
-                required
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder={ar ? "العنوان بالتفصيل (الشارع، الحي...)" : "Street address, district..."}
-                className="w-full text-xs rounded-lg border border-border bg-card px-3 py-2.5 text-foreground outline-none"
-              />
+              <div className="space-y-1.5">
+                <input
+                  required
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder={ar ? "العنوان بالتفصيل (الشارع، الحي...)" : "Street address, district..."}
+                  className="w-full text-xs rounded-lg border border-border bg-card px-3 py-2.5 text-foreground outline-none"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLocateUser}
+                  disabled={isLocating}
+                  className="w-full text-xs py-2 h-auto flex items-center justify-center gap-1.5 border-dashed border-primary/40 text-primary hover:bg-primary/10 transition-colors font-semibold"
+                >
+                  {isLocating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>{ar ? "جاري تحديد الموقع..." : "Locating..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                      <span>📍 {ar ? "تحديد موقعي تلقائيًا" : "Locate my position automatically"}</span>
+                    </>
+                  )}
+                </Button>
+              </div>
 
               {profile && walletBalance > 0 && (
                 <div className="flex items-center gap-2 pt-2">
@@ -675,6 +761,13 @@ export function CartDrawer() {
           </div>
         )}
       </SheetContent>
+      <LocationPickerModal
+        open={locationModalOpen}
+        onOpenChange={setLocationModalOpen}
+        initialLat={latitude}
+        initialLng={longitude}
+        onConfirm={handleLocationConfirmed}
+      />
     </Sheet>
   );
 }

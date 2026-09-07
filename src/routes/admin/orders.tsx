@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, ReceiptText, Printer, RotateCcw } from "lucide-react";
+import { MessageSquare, ReceiptText, Printer, RotateCcw, MapPin, Copy, ExternalLink } from "lucide-react";
 import type { Order, OrderItem, ReturnRequest } from "@/lib/types";
 import { toast } from "sonner";
 import { createNotification } from "@/lib/notifications";
+import { siteAssets } from "@/lib/site-assets";
 
 export const Route = createFileRoute("/admin/orders")({
   validateSearch: (search: Record<string, unknown>): { tab?: string; orderId?: string; returnId?: string } => {
@@ -720,6 +721,32 @@ function AdminOrders() {
 
                       {/* Address */}
                       <p className="text-xs text-muted-foreground">{order.address}، {order.governorate}</p>
+                      {order.latitude && order.longitude && (
+                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                          <a
+                            href={`https://www.google.com/maps?q=${order.latitude},${order.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded"
+                          >
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            <span>{ar ? "الموقع على الخريطة" : "Google Maps"}</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const text = `اسم العميل: ${order.customer_name}\nرقم الهاتف: ${order.phone}\nالمحافظة: ${order.governorate}\nالعنوان: ${order.address}\nرابط الموقع: https://www.google.com/maps?q=${order.latitude},${order.longitude}\nالمبلغ المطلوب: ${order.total} ج.م`;
+                              navigator.clipboard.writeText(text);
+                              toast.success(ar ? "تم نسخ تفاصيل الشحن والموقع" : "Shipping details copied");
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground bg-secondary px-2 py-0.5 rounded border border-border/40"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>{ar ? "نسخ للشحن" : "Copy Courier Info"}</span>
+                          </button>
+                        </div>
+                      )}
 
                       {/* Items */}
                       {items.length > 0 && (
@@ -867,6 +894,32 @@ function AdminOrders() {
                           <p className="text-xs text-muted-foreground mt-0.5 max-w-[200px] leading-relaxed">
                             {order.address}, {order.governorate}
                           </p>
+                          {order.latitude && order.longitude && (
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                              <a
+                                href={`https://www.google.com/maps?q=${order.latitude},${order.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded"
+                              >
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span>{ar ? "خريطة Google" : "Google Maps"}</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const text = `اسم العميل: ${order.customer_name}\nرقم الهاتف: ${order.phone}\nالمحافظة: ${order.governorate}\nالعنوان: ${order.address}\nرابط الموقع: https://www.google.com/maps?q=${order.latitude},${order.longitude}\nالمبلغ المطلوب: ${order.total} ج.م`;
+                                  navigator.clipboard.writeText(text);
+                                  toast.success(ar ? "تم نسخ تفاصيل الشحن والموقع" : "Shipping details copied");
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground bg-secondary px-2 py-0.5 rounded border border-border/40"
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span>{ar ? "نسخ للشحن" : "Copy Info"}</span>
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="p-4">
                           {items.length > 0 ? (
@@ -1444,55 +1497,69 @@ function AdminOrders() {
           </DialogHeader>
           {selectedInvoiceOrder && (
             <div className="p-6 bg-white text-black" id="invoice-content">
-              <div className="flex justify-between items-start mb-8 border-b pb-6">
+              <div className="flex justify-between items-start mb-8 border-b border-gray-200 pb-6">
                 <div>
-                  <h1 className="text-2xl font-black text-primary mb-1">Perfume Note</h1>
-                  <p className="text-sm text-gray-500">{ar ? "رقم الطلب:" : "Order #"} {selectedInvoiceOrder.id.slice(0, 8).toUpperCase()}</p>
-                  <p className="text-sm text-gray-500">{new Date(selectedInvoiceOrder.created_at).toLocaleString(ar ? "ar-EG" : "en-US")}</p>
+                  <h3 className="font-bold mb-1 text-gray-900">{ar ? "بيانات العميل" : "Customer Details"}</h3>
+                  <p className="text-sm text-gray-800">{selectedInvoiceOrder.customer_name}</p>
+                  <p className="text-sm text-gray-800">{selectedInvoiceOrder.phone}</p>
+                  <p className="text-sm text-gray-800">{selectedInvoiceOrder.address}, {selectedInvoiceOrder.governorate}</p>
+                  {selectedInvoiceOrder.latitude && selectedInvoiceOrder.longitude && (
+                    <a
+                      href={`https://www.google.com/maps?q=${selectedInvoiceOrder.latitude},${selectedInvoiceOrder.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 mt-1.5 underline hover:text-blue-800 break-all dir-ltr"
+                    >
+                      <span>📍</span>
+                      <span className="font-mono">{`https://maps.google.com/?q=${selectedInvoiceOrder.latitude},${selectedInvoiceOrder.longitude}`}</span>
+                    </a>
+                  )}
                 </div>
-                <div className="text-end">
-                  <h3 className="font-bold mb-1">{ar ? "بيانات العميل" : "Customer Details"}</h3>
-                  <p className="text-sm">{selectedInvoiceOrder.customer_name}</p>
-                  <p className="text-sm">{selectedInvoiceOrder.phone}</p>
-                  <p className="text-sm">{selectedInvoiceOrder.address}, {selectedInvoiceOrder.governorate}</p>
+                <div className="text-end flex flex-col items-end">
+                  <div className="flex items-center gap-2 mb-2">
+                    <img src={siteAssets.logo} alt="Perfume Note" className="h-12 w-12 rounded-full object-cover border border-gray-200" />
+                    <span className="text-2xl font-bold font-serif text-[#8c6d46]">Perfume Note</span>
+                  </div>
+                  <p className="text-sm text-gray-600 font-semibold">{ar ? "رقم الطلب:" : "Order #"} <span className="font-bold text-gray-900">{selectedInvoiceOrder.id.slice(0, 8).toUpperCase()}</span></p>
+                  <p className="text-xs text-gray-500 mt-0.5">{new Date(selectedInvoiceOrder.created_at).toLocaleString(ar ? "ar-EG" : "en-US")}</p>
                 </div>
               </div>
 
               <table className="w-full text-start mb-8 border-collapse">
                 <thead>
                   <tr className="border-b-2 border-gray-200">
-                    <th className="py-2 text-start">{ar ? "المنتج" : "Item"}</th>
-                    <th className="py-2 text-center">{ar ? "الكمية" : "Qty"}</th>
-                    <th className="py-2 text-end">{ar ? "السعر" : "Price"}</th>
-                    <th className="py-2 text-end">{ar ? "الإجمالي" : "Total"}</th>
+                    <th className="py-2.5 text-start font-bold">{ar ? "المنتج" : "Item"}</th>
+                    <th className="py-2.5 text-center font-bold">{ar ? "الكمية" : "Qty"}</th>
+                    <th className="py-2.5 text-end font-bold">{ar ? "السعر" : "Price"}</th>
+                    <th className="py-2.5 text-end font-bold">{ar ? "الإجمالي" : "Total"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {orderItemsMap[selectedInvoiceOrder.id]?.map((item) => (
                     <tr key={item.id}>
                       <td className="py-3 text-sm">{item.title}</td>
-                      <td className="py-3 text-sm text-center">{item.quantity}</td>
+                      <td className="py-3 text-sm text-center font-medium">{item.quantity}</td>
                       <td className="py-3 text-sm text-end">{item.price.toFixed(2)} {ar ? "ج.م" : "EGP"}</td>
-                      <td className="py-3 text-sm text-end font-semibold">{(item.price * item.quantity).toFixed(2)} {ar ? "ج.م" : "EGP"}</td>
+                      <td className="py-3 text-sm text-end font-bold">{(item.price * item.quantity).toFixed(2)} {ar ? "ج.م" : "EGP"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
               <div className="flex justify-end">
-                <div className="w-64 space-y-2 text-sm">
+                <div className="w-72 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">{ar ? "المجموع الفرعي:" : "Subtotal:"}</span>
-                    <span>{(selectedInvoiceOrder.subtotal || (selectedInvoiceOrder.total - selectedInvoiceOrder.shipping_cost + selectedInvoiceOrder.discount + (selectedInvoiceOrder.wallet_used || 0))).toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                    <span className="font-semibold">{(selectedInvoiceOrder.subtotal || (selectedInvoiceOrder.total - selectedInvoiceOrder.shipping_cost + selectedInvoiceOrder.discount + (selectedInvoiceOrder.wallet_used || 0))).toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">{ar ? "مصاريف الشحن:" : "Shipping:"}</span>
-                    <span>{selectedInvoiceOrder.shipping_cost.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                    <span className="font-semibold">{selectedInvoiceOrder.shipping_cost.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
                   </div>
                   {selectedInvoiceOrder.discount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>{ar ? "خصم:" : "Discount:"}</span>
-                      <span>- {selectedInvoiceOrder.discount.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+                      <span className="font-semibold">- {selectedInvoiceOrder.discount.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
                     </div>
                   )}
                   {selectedInvoiceOrder.wallet_used > 0 && (
@@ -1501,13 +1568,13 @@ function AdminOrders() {
                       <span>- {selectedInvoiceOrder.wallet_used.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-gray-200 pt-2 font-black text-lg">
+                  <div className="flex justify-between border-t-2 border-gray-900 pt-2 font-black text-lg text-gray-900">
                     <span>{ar ? "المطلوب دفعه:" : "Amount Due:"}</span>
                     <span>{selectedInvoiceOrder.total.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                  <div className="flex justify-between text-xs text-gray-500 pt-1">
                     <span>{ar ? "طريقة الدفع:" : "Payment Method:"}</span>
-                    <span className="uppercase">{selectedInvoiceOrder.payment_method}</span>
+                    <span className="uppercase font-semibold text-gray-700">{selectedInvoiceOrder.payment_method}</span>
                   </div>
                 </div>
               </div>
@@ -1517,58 +1584,154 @@ function AdminOrders() {
             <Button variant="outline" onClick={() => setInvoiceModalOpen(false)}>
               {ar ? "إغلاق" : "Close"}
             </Button>
-            <Button onClick={() => {
-              const content = document.getElementById("invoice-content")?.innerHTML;
-              const printWindow = window.open("", "_blank");
-              if (printWindow) {
+            <Button
+              className="bg-[#8c6d46] hover:bg-[#735938] text-white font-bold"
+              onClick={() => {
+                if (!selectedInvoiceOrder) return;
+                const items = orderItemsMap[selectedInvoiceOrder.id] || [];
+                const printWindow = window.open("", "_blank");
+                if (!printWindow) return;
+
+                const subtotalVal = (selectedInvoiceOrder.subtotal || (selectedInvoiceOrder.total - selectedInvoiceOrder.shipping_cost + selectedInvoiceOrder.discount + (selectedInvoiceOrder.wallet_used || 0))).toFixed(2);
+
+                const itemsRows = items.map(item => `
+                  <tr>
+                    <td style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9; font-size: 13px; font-weight: 600;">${item.title}</td>
+                    <td style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9; text-align: center; font-size: 13px;">${item.quantity}</td>
+                    <td style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9; text-align: left; font-size: 13px;">${item.price.toFixed(2)} ${ar ? 'ج.م' : 'EGP'}</td>
+                    <td style="padding: 12px 14px; border-bottom: 1px solid #f1f5f9; text-align: left; font-size: 13px; font-weight: 700;">${(item.price * item.quantity).toFixed(2)} ${ar ? 'ج.م' : 'EGP'}</td>
+                  </tr>
+                `).join('');
+
+                const mapLocationHtml = selectedInvoiceOrder.latitude && selectedInvoiceOrder.longitude
+                  ? `<a href="https://www.google.com/maps?q=${selectedInvoiceOrder.latitude},${selectedInvoiceOrder.longitude}" target="_blank" style="display:inline-flex; align-items:center; gap:4px; margin-top:6px; font-size:11px; color:#2563eb; direction:ltr; font-family:monospace; text-decoration:underline; word-break:break-all;">📍 https://maps.google.com/?q=${selectedInvoiceOrder.latitude},${selectedInvoiceOrder.longitude}</a>`
+                  : '';
+
+                const logoSrc = window.location.origin + siteAssets.logo;
+
                 printWindow.document.write(`
-                  <html dir="${ar ? 'rtl' : 'ltr'}">
+                  <!DOCTYPE html>
+                  <html dir="${ar ? 'rtl' : 'ltr'}" lang="${ar ? 'ar' : 'en'}">
                     <head>
-                      <title>${ar ? 'طباعة الفاتورة' : 'Print Invoice'}</title>
+                      <meta charset="utf-8" />
+                      <title>${ar ? 'فاتورة طلب' : 'Order Invoice'} #${selectedInvoiceOrder.id.slice(0, 8).toUpperCase()}</title>
                       <style>
-                        body { font-family: system-ui, -apple-system, sans-serif; padding: 20px; }
-                        table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
-                        th { border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; text-align: ${ar ? 'right' : 'left'}; }
-                        td { border-bottom: 1px solid #f3f4f6; padding: 0.75rem 0; }
-                        .text-end { text-align: ${ar ? 'left' : 'right'}; }
-                        .text-center { text-align: center; }
-                        .flex { display: flex; }
-                        .justify-between { justify-content: space-between; }
-                        .justify-end { justify-content: flex-end; }
-                        .font-bold { font-weight: bold; }
-                        .font-black { font-weight: 900; }
-                        .text-primary { color: #000; }
-                        .text-gray-500 { color: #6b7280; }
-                        .text-gray-600 { color: #4b5563; }
-                        .text-green-600 { color: #16a34a; }
-                        .text-blue-600 { color: #2563eb; }
-                        .text-2xl { font-size: 1.5rem; }
-                        .text-lg { font-size: 1.125rem; }
-                        .text-sm { font-size: 0.875rem; }
-                        .text-xs { font-size: 0.75rem; }
-                        .border-b { border-bottom: 1px solid #e5e7eb; }
-                        .pb-6 { padding-bottom: 1.5rem; }
-                        .mb-8 { margin-bottom: 2rem; }
-                        .mb-1 { margin-bottom: 0.25rem; }
-                        .space-y-2 > * + * { margin-top: 0.5rem; }
-                        .pt-2 { padding-top: 0.5rem; }
-                        .w-64 { width: 16rem; }
+                        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+                        @page { size: A4; margin: 0; }
+                        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        html, body { height: auto !important; overflow: visible !important; }
+                        body { font-family: 'Cairo', system-ui, -apple-system, sans-serif; background: #ffffff; color: #1a1a1a; padding: 14mm 12mm; font-size: 13px; line-height: 1.4; }
+                        .invoice-card { max-width: 750px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 22px; background: #ffffff; }
+                        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 2px solid #8c6d46; margin-bottom: 20px; }
+                        .brand { display: flex; items-center; gap: 10px; }
+                        .brand-logo { height: 48px; width: 48px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; }
+                        .brand-name { font-size: 22px; font-weight: 800; color: #8c6d46; font-family: Georgia, serif; }
+                        .order-info { text-align: ${ar ? 'left' : 'right'}; }
+                        .order-id { font-size: 14px; font-weight: 800; color: #0f172a; }
+                        .order-date { font-size: 12px; color: #64748b; margin-top: 4px; }
+                        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+                        .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+                        .info-title { font-size: 12px; font-weight: 700; color: #8c6d46; margin-bottom: 6px; }
+                        .info-text { font-size: 13px; color: #334155; font-weight: 600; line-height: 1.5; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+                        th { background: #f8fafc; color: #475569; font-weight: 700; font-size: 12px; padding: 10px 14px; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1; text-align: ${ar ? 'right' : 'left'}; }
+                        .totals-box { display: flex; justify-content: flex-end; }
+                        .totals-table { width: 280px; }
+                        .row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; color: #475569; }
+                        .row.grand { border-top: 2px solid #0f172a; margin-top: 6px; padding-top: 8px; font-size: 16px; font-weight: 800; color: #0f172a; }
+                        .footer-note { margin-top: 28px; padding-top: 14px; border-top: 1px dashed #e2e8f0; text-align: center; font-size: 11px; color: #94a3b8; }
                       </style>
                     </head>
                     <body>
-                      ${content}
+                      <div class="invoice-card">
+                        <div class="header">
+                          <div class="brand">
+                            <img src="${logoSrc}" class="brand-logo" alt="Logo" />
+                            <span class="brand-name">Perfume Note</span>
+                          </div>
+                          <div class="order-info">
+                            <div class="order-id">${ar ? 'رقم الطلب:' : 'Order #'} ${selectedInvoiceOrder.id.slice(0, 8).toUpperCase()}</div>
+                            <div class="order-date">${new Date(selectedInvoiceOrder.created_at).toLocaleString(ar ? 'ar-EG' : 'en-US')}</div>
+                          </div>
+                        </div>
+
+                        <div class="info-grid">
+                          <div class="info-box">
+                            <div class="info-title">${ar ? 'بيانات العميل' : 'Customer Details'}</div>
+                            <div class="info-text">${selectedInvoiceOrder.customer_name}</div>
+                            <div class="info-text">${selectedInvoiceOrder.phone}</div>
+                            <div class="info-text">${selectedInvoiceOrder.address}، ${selectedInvoiceOrder.governorate}</div>
+                            ${mapLocationHtml}
+                          </div>
+                          <div class="info-box">
+                            <div class="info-title">${ar ? 'تفاصيل الدفع' : 'Payment Details'}</div>
+                            <div class="info-text">${ar ? 'طريقة الدفع:' : 'Method:'} ${selectedInvoiceOrder.payment_method}</div>
+                            <div class="info-text">${ar ? 'حالة الطلب:' : 'Status:'} ${selectedInvoiceOrder.status}</div>
+                          </div>
+                        </div>
+
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>${ar ? 'المنتج' : 'Item'}</th>
+                              <th style="text-align: center;">${ar ? 'الكمية' : 'Qty'}</th>
+                              <th style="text-align: left;">${ar ? 'السعر' : 'Price'}</th>
+                              <th style="text-align: left;">${ar ? 'الإجمالي' : 'Total'}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            ${itemsRows}
+                          </tbody>
+                        </table>
+
+                        <div class="totals-box">
+                          <div class="totals-table">
+                            <div class="row">
+                              <span>${ar ? 'المجموع الفرعي:' : 'Subtotal:'}</span>
+                              <span>${subtotalVal} ${ar ? 'ج.م' : 'EGP'}</span>
+                            </div>
+                            <div class="row">
+                              <span>${ar ? 'مصاريف الشحن:' : 'Shipping:'}</span>
+                              <span>${selectedInvoiceOrder.shipping_cost.toFixed(2)} ${ar ? 'ج.م' : 'EGP'}</span>
+                            </div>
+                            ${selectedInvoiceOrder.discount > 0 ? `
+                              <div class="row" style="color: #16a34a;">
+                                <span>${ar ? 'الخصم:' : 'Discount:'}</span>
+                                <span>- ${selectedInvoiceOrder.discount.toFixed(2)} ${ar ? 'ج.م' : 'EGP'}</span>
+                              </div>
+                            ` : ''}
+                            ${selectedInvoiceOrder.wallet_used > 0 ? `
+                              <div class="row" style="color: #2563eb; font-weight: 700;">
+                                <span>${ar ? 'خصم المحفظة:' : 'Wallet Used:'}</span>
+                                <span>- ${selectedInvoiceOrder.wallet_used.toFixed(2)} ${ar ? 'ج.م' : 'EGP'}</span>
+                              </div>
+                            ` : ''}
+                            <div class="row grand">
+                              <span>${ar ? 'المطلوب دفعه:' : 'Amount Due:'}</span>
+                              <span>${selectedInvoiceOrder.total.toFixed(2)} ${ar ? 'ج.م' : 'EGP'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="footer-note">
+                          شكراً لتسوقكم مع Perfume Note! 🌿
+                        </div>
+                      </div>
+
                       <script>
                         window.onload = () => {
-                          window.print();
-                          window.close();
+                          setTimeout(() => {
+                            window.print();
+                            window.close();
+                          }, 350);
                         };
                       </script>
                     </body>
                   </html>
                 `);
                 printWindow.document.close();
-              }
-            }}>
+              }}
+            >
               <Printer className="w-4 h-4 mr-2 ml-2" />
               {ar ? "طباعة" : "Print"}
             </Button>

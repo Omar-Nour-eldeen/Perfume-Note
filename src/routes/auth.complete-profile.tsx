@@ -11,6 +11,8 @@ import { siteAssets } from "@/lib/site-assets";
 import { EGYPT_GOVERNORATES } from "@/lib/governorates";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
+import { LocationPickerModal } from "@/components/checkout/LocationPickerModal";
+
 export const Route = createFileRoute("/auth/complete-profile")({
   component: CompleteProfilePage,
 });
@@ -25,6 +27,7 @@ function CompleteProfilePage() {
   const [phone, setPhone] = useState("");
   const [governorate, setGovernorate] = useState("");
   const [address, setAddress] = useState("");
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -238,7 +241,7 @@ function CompleteProfilePage() {
               <img
                 src={siteAssets.logo}
                 alt="Perfume Note"
-                className="h-12 mx-auto object-contain cursor-pointer"
+                className="h-14 w-14 mx-auto rounded-full object-cover shadow-sm border border-border/40 cursor-pointer"
               />
             </button>
             <h1
@@ -390,6 +393,16 @@ function CompleteProfilePage() {
                   className={`w-full rounded-md border border-input bg-background text-foreground text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none py-2 ${ar ? "pr-10 pl-3" : "pl-10 pr-3"}`}
                 />
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setLocationModalOpen(true)}
+                className="w-full text-xs py-2 h-auto flex items-center justify-center gap-1.5 border-dashed border-primary/40 text-primary hover:bg-primary/10 transition-colors font-semibold"
+              >
+                <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>📍 {ar ? "تحديد موقعي التلقائي على الخريطة" : "Select location on map"}</span>
+              </Button>
             </div>
 
             {/* Submit */}
@@ -426,6 +439,16 @@ function CompleteProfilePage() {
           </form>
         </div>
       </div>
+
+      <LocationPickerModal
+        open={locationModalOpen}
+        onOpenChange={setLocationModalOpen}
+        onConfirm={(loc) => {
+          if (loc.address) {
+            setAddress(loc.address);
+          }
+        }}
+      />
     </div>
   );
 }

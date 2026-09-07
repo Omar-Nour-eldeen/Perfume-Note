@@ -180,6 +180,8 @@ create table public.orders (
   governorate text not null,
   discount_code text,
   payment_method text not null,
+  latitude numeric(10, 7),
+  longitude numeric(10, 7),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

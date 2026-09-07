@@ -54,7 +54,7 @@ function VerifyEmailPage() {
             <img
               src={siteAssets.logo}
               alt="Perfume Note"
-              className="h-14 mx-auto object-contain"
+              className="h-14 w-14 mx-auto rounded-full object-cover shadow-sm border border-border/40"
             />
           </Link>
         </div>
