@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/NotificationBell";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 interface NavbarProps {
   /** Start transparent (for hero pages), solid on scroll */
@@ -203,6 +204,15 @@ export function Navbar({ transparent = false }: NavbarProps) {
               <Search className="w-[18px] h-[18px]" strokeWidth={1.5} />
             </button>
 
+            <div className="hidden md:block">
+              <InstallAppButton
+                variant="navbar"
+                className={cn(
+                  isSolid ? "" : "navbar-transparent"
+                )}
+              />
+            </div>
+
             <button
               onClick={toggleLanguage}
               className={cn(
@@ -365,6 +375,9 @@ export function Navbar({ transparent = false }: NavbarProps) {
               </div>
             )
           )}
+          <div className="w-full max-w-xs pt-2">
+            <InstallAppButton variant="banner" className="w-full" />
+          </div>
           <button
             onClick={() => { toggleLanguage(); setMobileOpen(false); }}
             className="text-sm font-semibold tracking-widest text-muted-foreground uppercase mt-4"

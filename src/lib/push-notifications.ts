@@ -55,8 +55,11 @@ export async function subscribeToPush(userId: string, isAdmin?: boolean): Promis
   }
 
   try {
-    // 1. اطلب إذن الإشعارات من المستخدم
-    const permission = await Notification.requestPermission();
+    // 1. اطلب إذن الإشعارات من المستخدم (إذا كان ممنوحاً مسبقاً، تجاهل الطلب)
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== 'granted') {
       console.warn('[Push] Notification permission denied:', permission);
       return false;

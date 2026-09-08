@@ -2,12 +2,20 @@
   "name": "Perfume Note",
   "short_name": "Perfume Note",
   "description": "Luxury Fragrances — عطور فاخرة تترجم شخصيتك",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#000000",
   "gcm_sender_id": "103953800507",
   "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    },
     {
       "src": "/favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { siteAssets } from "@/lib/site-assets";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 export function Footer() {
   const { language } = useI18n();
@@ -84,6 +85,9 @@ export function Footer() {
                 {ar ? l.label_ar : l.label_en}
               </Link>
             ))}
+            <div className="pt-2">
+              <InstallAppButton variant="link" />
+            </div>
           </div>
 
         </div>

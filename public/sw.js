@@ -16,6 +16,11 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// ─── Fetch Event (Required for Chrome PWA Installability) ─────
+self.addEventListener('fetch', (event) => {
+  // Required by Chrome PWA specification
+});
+
 // ─── Push Event ───────────────────────────────────
 // يُشغَّل فور وصول Push Notification من السيرفر حتى لو كان المتصفح مغلقاً
 self.addEventListener('push', (event) => {

@@ -7,7 +7,6 @@ import { useState } from "react";
 import { StoreLayout } from "@/components/StoreLayout";
 import { LuxuryProductCard } from "@/components/LuxuryProductCard";
 import { PageHero } from "@/components/PageHero";
-import { Search } from "lucide-react";
 import heroShop from "@/assets/images/hero_shop.jpg";
 
 export const Route = createFileRoute("/shop")({
@@ -30,13 +29,10 @@ export const Route = createFileRoute("/shop")({
   component: ShopPage,
 });
 
-type SortOption = "newest" | "price_asc" | "price_desc";
 
 function ShopPage() {
   const { language } = useI18n();
   const ar = language === "ar";
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortOption>("newest");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const { data: products } = useSuspenseQuery<Product[]>({
@@ -57,17 +53,9 @@ function ShopPage() {
       if (selectedCategory !== "all" && p.category_id !== selectedCategory) {
         return false;
       }
-      const q = search.toLowerCase();
-      return (
-        (p.title_ar ?? "").includes(q) ||
-        (p.title_en ?? "").toLowerCase().includes(q)
-      );
+      return true;
     })
-    .sort((a, b) => {
-      if (sort === "price_asc") return a.price - b.price;
-      if (sort === "price_desc") return b.price - a.price;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
     <StoreLayout>
@@ -106,29 +94,6 @@ function ShopPage() {
                 {ar ? cat.name_ar : cat.name_en}
               </button>
             ))}
-          </div>
-
-          {/* Search & Sort */}
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute top-1/2 -translate-y-1/2 end-3 w-4 h-4 text-muted-foreground" strokeWidth={1.5} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={ar ? "ابحث عن عطر..." : "Search fragrances..."}
-                className="w-full bg-secondary/50 rounded-lg border border-border/40 text-sm text-foreground placeholder:text-muted-foreground pe-10 ps-4 py-2 outline-none focus:border-primary/60 transition-colors"
-              />
-            </div>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortOption)}
-              className="bg-secondary/50 rounded-lg border border-border/40 text-xs text-foreground px-4 py-2.5 outline-none focus:border-primary/60 transition-colors cursor-pointer"
-            >
-              <option value="newest">{ar ? "الأحدث" : "Newest"}</option>
-              <option value="price_asc">{ar ? "السعر: من الأقل" : "Price: Low to High"}</option>
-              <option value="price_desc">{ar ? "السعر: من الأعلى" : "Price: High to Low"}</option>
-            </select>
           </div>
         </div>
       </section>

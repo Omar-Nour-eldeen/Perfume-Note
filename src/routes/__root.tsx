@@ -18,6 +18,8 @@ import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { preloadSiteData, invalidateProductCache } from "@/lib/data-cache";
 import { supabase } from "@/lib/supabase";
+import { isPushSupported, registerServiceWorker, subscribeToPush } from "@/lib/push-notifications";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 function NotFoundComponent() {
   return (
@@ -183,6 +185,16 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('beforeinstallprompt', function(e) {
+                e.preventDefault();
+                window.deferredInstallPrompt = e;
+              });
+            `,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -266,12 +278,55 @@ function useProductsRealtime() {
 
 
 /**
+ * When the PWA is opened in standalone mode (i.e. the user already installed it)
+ * and the browser's Notification permission is already 'granted',
+ * we silently re-subscribe the push endpoint in Supabase so notifications
+ * continue working without asking the user again.
+ */
+function usePwaResubscribe() {
+  const { user, profile } = useAuth();
+
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as any).standalone === true;
+
+    if (!isStandalone) return;
+    if (!isPushSupported()) return;
+    if (Notification.permission !== "granted") return;
+    if (!user?.id) return;
+
+    // Re-subscribe silently (subscribeToPush skips requestPermission when already granted)
+    const resubscribe = async () => {
+      try {
+        await registerServiceWorker();
+        const registration = await navigator.serviceWorker.ready;
+        // Check if we already have a valid subscription in this standalone context
+        const existing = await registration.pushManager.getSubscription();
+        if (existing) {
+          console.log("[PWA] Push subscription already active in standalone mode.");
+          return;
+        }
+        // No subscription yet in standalone → re-subscribe silently
+        console.log("[PWA] Re-subscribing push in standalone mode...");
+        await subscribeToPush(user.id, profile?.is_admin ?? false);
+      } catch (err) {
+        console.warn("[PWA] Silent re-subscribe failed:", err);
+      }
+    };
+
+    void resubscribe();
+  }, [user?.id, profile?.is_admin]);
+}
+
+/**
  * Inner component rendered under QueryClientProvider so that
  * useProductsRealtime can safely call useQueryClient().
  */
 function AppInner() {
   useCartSync();
   useProductsRealtime();
+  usePwaResubscribe();
   return null;
 }
 
@@ -286,6 +341,8 @@ function RootComponent() {
           <InitialAppLoader queryClient={queryClient}>
             <Outlet />
             <Toaster position="top-center" richColors />
+            {/* زرار تثبيت التطبيق العائم - يظهر فقط على الموبايل */}
+            <InstallAppButton variant="float" />
           </InitialAppLoader>
         </QueryClientProvider>
       </AuthProvider>
