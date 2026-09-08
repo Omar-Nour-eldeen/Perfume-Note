@@ -79,6 +79,20 @@ export const createNotification = async (payload: Omit<Notification, "id" | "cre
   const { error } = await supabase.from("notifications").insert(payload);
   if (error) {
     console.error("Failed to create notification:", error);
+    return;
+  }
+
+  // إرسال إشعار Web Push تلقائياً عبر Edge Function
+  try {
+    supabase.functions.invoke("send-push-notification", {
+      body: payload,
+    }).then(({ error: pushError }) => {
+      if (pushError) {
+        console.error("[Push] Edge function error:", pushError);
+      }
+    });
+  } catch (err) {
+    console.error("[Push] Error invoking push notification function:", err);
   }
 };
 

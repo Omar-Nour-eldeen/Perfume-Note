@@ -1,4 +1,4 @@
-import { Bell, Check } from "lucide-react";
+import { Bell, Check, BellOff, BellRing, Loader2, Lock, ShieldAlert } from "lucide-react";
 import { useNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "@/lib/notifications";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -12,7 +12,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  isPushSupported,
+  subscribeToPush,
+  unsubscribeFromPush,
+  getPushSubscriptionStatus,
+  registerServiceWorker,
+  watchPushPermission,
+} from "@/lib/push-notifications";
 
 interface NotificationBellProps {
   isSolid?: boolean;
@@ -25,8 +33,63 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
   const { notifications, unreadCount } = useNotifications();
   const queryClient = useQueryClient();
 
-  
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
+
+  // ── Push Notification State ──────────────────────
+  const [pushStatus, setPushStatus] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
+  const [pushLoading, setPushLoading] = useState(false);
+  const [showUnblockGuide, setShowUnblockGuide] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+
+    const check = async () => {
+      await registerServiceWorker();
+      const status = await getPushSubscriptionStatus();
+      if (isMounted) {
+        setPushStatus(status);
+      }
+    };
+
+    check();
+
+    // مراقبة أي تغيير حقيقي من إعدادات المتصفح بدون الحاجة لعمل ريفريش
+    const unwatch = watchPushPermission((newStatus) => {
+      if (isMounted) setPushStatus(newStatus);
+    });
+
+    return () => {
+      isMounted = false;
+      unwatch();
+    };
+  }, [user?.id]);
+
+  const handleTogglePush = async () => {
+    if (!user) return;
+    setPushLoading(true);
+    try {
+      if (pushStatus === 'granted') {
+        // إلغاء تفعيل الإشعارات (المستخدم قرر إيقافها)
+        await unsubscribeFromPush(user.id);
+        const newStatus = await getPushSubscriptionStatus();
+        setPushStatus(newStatus);
+      } else if (pushStatus === 'denied') {
+        // المتصفح يحظر الإشعارات → إظهار دليل طريقة إلغاء الحظر
+        setShowUnblockGuide(true);
+      } else {
+        // تفعيل الإشعارات
+        const success = await subscribeToPush(user.id, profile?.is_admin || false);
+        const newStatus = await getPushSubscriptionStatus();
+        setPushStatus(newStatus);
+        if (!success && newStatus === 'denied') {
+          setShowUnblockGuide(true);
+        }
+      }
+    } finally {
+      setPushLoading(false);
+    }
+  };
 
   const handleNavigate = (linkString: string, notifType?: string) => {
     setSelectedNotification(null);
@@ -68,7 +131,9 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={(open) => {
+        if (open) getPushSubscriptionStatus().then(setPushStatus);
+      }}>
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
@@ -159,9 +224,57 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
               </div>
             )}
           </div>
+
+          {/* ── Push Notification Control Toggle ────────────── */}
+          {isPushSupported() && (
+            <div className="p-3 border-t border-border/50 bg-secondary/10">
+              <button
+                onClick={handleTogglePush}
+                disabled={pushLoading}
+                className={cn(
+                  "w-full flex items-center justify-between text-xs rounded-lg px-3 py-2 transition-all font-medium",
+                  pushStatus === 'granted'
+                    ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400"
+                    : pushStatus === 'denied'
+                    ? "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {pushLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : pushStatus === 'granted' ? (
+                    <BellRing className="w-3.5 h-3.5" />
+                  ) : pushStatus === 'denied' ? (
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                  ) : (
+                    <BellOff className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {pushLoading
+                      ? (ar ? "جارٍ التحديث..." : "Updating...")
+                      : pushStatus === 'granted'
+                      ? (ar ? "إشعارات الجهاز: مفعّلة ✓" : "Device Notifications: On ✓")
+                      : pushStatus === 'denied'
+                      ? (ar ? "الإشعارات محظورة (اضغط للحل)" : "Notifications Blocked (Fix)")
+                      : (ar ? "تفعيل إشعارات الجهاز" : "Enable Device Notifications")}
+                  </span>
+                </div>
+
+                <span className="text-[10px] underline font-bold opacity-80">
+                  {pushStatus === 'granted'
+                    ? (ar ? "إيقاف" : "Turn Off")
+                    : pushStatus === 'denied'
+                    ? (ar ? "تغيير" : "Change")
+                    : (ar ? "تفعيل" : "Enable")}
+                </span>
+              </button>
+            </div>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* ── Notification Detail Dialog ────────────── */}
       <Dialog open={!!selectedNotification} onOpenChange={(open) => !open && setSelectedNotification(null)}>
         <DialogContent>
           <DialogHeader>
@@ -181,6 +294,43 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
               </Button>
             </DialogFooter>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Modal Guide for Unblocking Notifications ────────────── */}
+      <Dialog open={showUnblockGuide} onOpenChange={setShowUnblockGuide}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-amber-600 dark:text-amber-400">
+              <ShieldAlert className="w-5 h-5" />
+              {ar ? "كيفية التغيير من Block إلى Allow" : "How to Change from Block to Allow"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-sm text-foreground/90">
+            <p className="leading-relaxed">
+              {ar
+                ? "قام المتصفح بحظر الإشعارات سابقاً. لتلقي الإشعارات أو التغيير بين السماح والحظر:"
+                : "Your browser currently blocks notifications. To allow or change settings:"}
+            </p>
+
+            <div className="bg-secondary/40 p-3 rounded-lg space-y-2 border border-border/50 text-xs">
+              <div className="flex items-center gap-2 font-semibold">
+                <Lock className="w-4 h-4 text-primary shrink-0" />
+                <span>{ar ? "الخطوة 1: اضغط على أيقونة إعدادات الموقع 🎛️ أو القفل 🔒 بجانب الرابط فوق" : "Step 1: Click site settings 🎛️ or lock 🔒 icon next to URL above"}</span>
+              </div>
+              <div className="flex items-center gap-2 font-semibold pt-1">
+                <BellRing className="w-4 h-4 text-emerald-500 shrink-0" />
+                <span>{ar ? "الخطوة 2: غير الإشعارات (Notifications) إلى السماح (Allow)" : "Step 2: Change Notifications setting to Allow"}</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setShowUnblockGuide(false)} className="w-full">
+              {ar ? "حسناً، فهمت" : "Got it"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

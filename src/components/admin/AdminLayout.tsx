@@ -4,6 +4,7 @@ import { siteAssets } from "@/lib/site-assets";
 import { LayoutDashboard, ShoppingBag, ClipboardList, Percent, Truck, MessageSquare, Home, Layers, Languages } from "lucide-react";
 import type { ReactNode } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
+import { NotificationPromptBanner } from "@/components/NotificationPromptBanner";
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { language, setLanguage } = useI18n();
@@ -80,6 +81,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       <main className="min-w-0 flex-1 p-4 md:p-10 overflow-hidden">
         {children}
       </main>
+      <NotificationPromptBanner />
     </div>
   );
 }

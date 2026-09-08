@@ -4,6 +4,7 @@ import { Footer } from "@/components/Footer";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SocialSidebar } from "@/components/SocialSidebar";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { NotificationPromptBanner } from "@/components/NotificationPromptBanner";
 import { cn } from "@/lib/utils";
 
 interface StoreLayoutProps {
@@ -32,6 +33,7 @@ export function StoreLayout({
       {chat && <ChatWidget />}
       <SocialSidebar />
       <MobileBottomNav />
+      <NotificationPromptBanner />
     </div>
   );
 }
