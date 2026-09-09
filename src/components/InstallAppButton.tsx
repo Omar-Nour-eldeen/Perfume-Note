@@ -66,29 +66,20 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     };
 
     // ─── لما المستخدم يرجع للتاب بعد ما يحذف التطبيق ───
-    // Chrome على الموبايل بيطلق beforeinstallprompt بعد visibility change
-    // هنا بنتحقق: لو مش standalone ومش عندنا deferredPrompt → ممكن التطبيق اتحذف
+    // Chrome على الموبايل بيطلق beforeinstallprompt فقط عند تحميل الصفحة من جديد
+    // لذلك لو اكتشفنا إن التطبيق اتحذف → نعمل reload تلقائي
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
 
-      // لو التطبيق مش شغال standalone → مش مثبت
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         (navigator as any).standalone === true;
 
-      if (!isStandalone) {
-        // إذا عندنا deferredPrompt → كان البرنامج مش مثبت أصلاً
-        // إذا مفيش deferredPrompt → Chrome لسه ما بعتوش بعد الحذف، ننتظر قليلاً
-        if ((window as any).deferredInstallPrompt) {
-          localStorage.removeItem(INSTALLED_STORAGE_KEY);
-          setIsInstalled(false);
-          setDeferredPrompt((window as any).deferredInstallPrompt);
-        } else if (localStorage.getItem(INSTALLED_STORAGE_KEY) === "true") {
-          // التطبيق كان مثبت لكن مفيش standalone → على الأرجح اتحذف
-          // Chrome سيرسل beforeinstallprompt قريباً، لكن نمسح الكاش فوراً
-          localStorage.removeItem(INSTALLED_STORAGE_KEY);
-          setIsInstalled(false);
-        }
+      // لو مش standalone + localStorage بيقول مثبت → التطبيق اتحذف على الأرجح
+      if (!isStandalone && localStorage.getItem(INSTALLED_STORAGE_KEY) === "true") {
+        // نمسح الكاش ونعمل reload عشان Chrome يطلق beforeinstallprompt من جديد
+        localStorage.removeItem(INSTALLED_STORAGE_KEY);
+        window.location.reload();
       }
     };
 
