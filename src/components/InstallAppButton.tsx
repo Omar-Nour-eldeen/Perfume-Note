@@ -65,7 +65,11 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
 
     const handleAppInstalled = () => {
       // التطبيق اتنزل على الجهاز فعلاً → دلوقتي نبعت toast النجاح
-      toast.success(arRef.current ? "تم تثبيت التطبيق بنجاح! 🎉" : "App installed successfully! 🎉");
+      // id ثابت عشان لو في أكتر من instance من الـ component (float + navbar + banner)
+      // Sonner بيتجاهل التكرار ويظهر toast واحدة بس
+      toast.success(arRef.current ? "تم تثبيت التطبيق بنجاح! 🎉" : "App installed successfully! 🎉", {
+        id: "pwa-app-installed",
+      });
       setIsInstalling(false);
       setIsInstalled(true);
       localStorage.setItem(INSTALLED_STORAGE_KEY, "true");
