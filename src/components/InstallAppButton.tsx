@@ -4,6 +4,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { registerServiceWorker } from "@/lib/push-notifications";
 import { toast } from "sonner";
+import { useRouterState } from "@tanstack/react-router";
 
 const INSTALLED_STORAGE_KEY = "pn_pwa_installed";
 
@@ -15,6 +16,8 @@ interface InstallAppButtonProps {
 export function InstallAppButton({ className, variant = "button" }: InstallAppButtonProps) {
   const { language } = useI18n();
   const ar = language === "ar";
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isProductPage = pathname.startsWith("/product/");
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -132,8 +135,8 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     return (
       <div
         className={cn(
-          // يظهر بس على موبايل
-          "fixed bottom-[72px] left-1/2 -translate-x-1/2 z-40 md:hidden",
+          // يظهر بس على موبايل، فوق الـ Add to cart في صفحة المنتج أو فوق الـ Nav في باقي الصفحات
+          isProductPage ? "fixed bottom-[136px] left-1/2 -translate-x-1/2 z-40 md:hidden" : "fixed bottom-[72px] left-1/2 -translate-x-1/2 z-40 md:hidden",
           // أنيميشن دخول
           "animate-in slide-in-from-bottom-4 fade-in duration-500",
           className

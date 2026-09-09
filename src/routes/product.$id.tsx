@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { StoreLayout } from "@/components/StoreLayout";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShoppingBag, ArrowRight, Shield, Truck, RotateCcw, Wind, Heart as HeartIcon, TreePine } from "lucide-react";
+import { Loader2, ShoppingBag, ArrowRight, Shield, Truck, RotateCcw, Wind, Heart as HeartIcon, TreePine, CheckCircle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import type { Product } from "@/lib/types";
 import { getCachedProductById } from "@/lib/data-cache";
@@ -78,12 +78,28 @@ function ProductDetailPage() {
       toast.error(ar ? "الكمية المطلوبة غير متوفرة في المخزون" : "This product is out of stock");
       return;
     }
-    toast.success(ar ? "تمت الإضافة للسلة" : "Added to cart", {
-      description: ar
-        ? `تم إضافة ${product.title_ar} إلى سلتك.`
-        : `${product.title_en} has been added to your cart.`,
-      position: "top-center",
-    });
+    const title = ar ? product.title_ar : product.title_en;
+    const img = product.images?.[0];
+
+    toast.custom(() => (
+      <div
+        dir={ar ? "rtl" : "ltr"}
+        className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-border shadow-xl rounded-xl px-4 py-3 w-full max-w-[340px]"
+      >
+        {img && (
+          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-border">
+            <img src={img} alt={title} className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground truncate">{title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {ar ? "تمت الإضافة إلى السلة ✓" : "Added to cart ✓"}
+          </p>
+        </div>
+        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+      </div>
+    ), { duration: 2500 });
   };
 
   const image = product.images?.[0];
@@ -264,26 +280,29 @@ function ProductDetailPage() {
       {/* ── Reviews Section ── */}
       <ProductReviews productId={product.id} />
 
-      {/* ── Mobile Fixed Bottom Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-3 p-4 bg-card/95 backdrop-blur-md border-t border-border shadow-2xl lg:hidden">
-        <div className="flex flex-col">
-          <span className="text-xs text-muted-foreground">{ar ? "السعر" : "Price"}</span>
-          <span className="text-lg font-black text-primary">{product.price.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+      {/* ── Mobile Fixed Bottom Bar (Sits above MobileBottomNav) ── */}
+      <div className="fixed bottom-[56px] left-0 right-0 z-40 lg:hidden">
+        {/* Add to Cart Bar */}
+        <div className="flex items-center gap-3 p-3.5 bg-card/95 backdrop-blur-md border-t border-border/60 shadow-lg">
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground">{ar ? "السعر" : "Price"}</span>
+            <span className="text-lg font-black text-primary">{product.price.toFixed(2)} {ar ? "ج.م" : "EGP"}</span>
+          </div>
+          <Button
+            onClick={handleAddToCart}
+            disabled={isLoading}
+            className="flex-1 bg-foreground text-background py-4 text-sm font-bold hover:bg-foreground/90 transition-all"
+          >
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                <ShoppingBag className="h-5 w-5 me-2" />
+                {ar ? "أضف إلى السلة" : "Add to Cart"}
+              </>
+            )}
+          </Button>
         </div>
-        <Button
-          onClick={handleAddToCart}
-          disabled={isLoading}
-          className="flex-1 bg-foreground text-background py-4 text-sm font-bold hover:bg-foreground/90 transition-all"
-        >
-          {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <>
-              <ShoppingBag className="h-5 w-5 me-2" />
-              {ar ? "أضف إلى السلة" : "Add to Cart"}
-            </>
-          )}
-        </Button>
       </div>
     </StoreLayout>
   );

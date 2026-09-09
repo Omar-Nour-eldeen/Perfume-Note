@@ -340,7 +340,7 @@ function RootComponent() {
           <AppInner />
           <InitialAppLoader queryClient={queryClient}>
             <Outlet />
-            <Toaster position="top-center" richColors />
+            <Toaster richColors />
             {/* زرار تثبيت التطبيق العائم - يظهر فقط على الموبايل */}
             <InstallAppButton variant="float" />
           </InitialAppLoader>

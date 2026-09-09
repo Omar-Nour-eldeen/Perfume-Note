@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import type { ChatMessage } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { createNotification } from "@/lib/notifications";
 
 // Key to persist read-count in localStorage so badge doesn't return after refresh
@@ -25,6 +25,8 @@ export function ChatWidget() {
   const { language } = useI18n();
   const ar = language === "ar";
   const { user, profile } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isProductPage = pathname.startsWith("/product/");
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -204,7 +206,7 @@ export function ChatWidget() {
   };
 
   return (
-    <div className="fixed bottom-[64px] left-4 lg:bottom-6 lg:left-6 z-40 flex flex-col items-start" dir="ltr">
+    <div className={isProductPage ? "fixed bottom-[132px] left-4 lg:bottom-6 lg:left-6 z-40 flex flex-col items-start" : "fixed bottom-[64px] left-4 lg:bottom-6 lg:left-6 z-40 flex flex-col items-start"} dir="ltr">
       {/* Chat Window */}
       {isOpen && (
         <div

@@ -130,7 +130,7 @@ export function LuxuryProductCard({ product }: ProductCardProps) {
     toast.custom(() => (
       <div
         dir={ar ? "rtl" : "ltr"}
-        className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-border shadow-xl rounded-xl px-4 py-3 min-w-[280px]"
+        className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-border shadow-xl rounded-xl px-4 py-3 w-full max-w-[340px]"
       >
         {img && (
           <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-border">

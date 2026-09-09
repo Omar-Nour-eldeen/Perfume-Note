@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X, Share2 } from "lucide-react";
+import { useRouterState } from "@tanstack/react-router";
 
 const TikTokIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
@@ -51,6 +52,8 @@ const links = [
 export function SocialSidebar() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isProductPage = pathname.startsWith("/product/");
 
   const handleShare = () => {
     if (navigator.share) {
@@ -64,7 +67,7 @@ export function SocialSidebar() {
   };
 
   return (
-    <div className="fixed bottom-[64px] right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col items-center gap-2.5">
+    <div className={isProductPage ? "fixed bottom-[132px] right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col items-center gap-2.5" : "fixed bottom-[64px] right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col items-center gap-2.5"}>
       {/* Social links — slide in when open */}
       <div
         className={`flex flex-col items-center gap-2.5 overflow-hidden transition-all duration-500 ease-in-out ${
