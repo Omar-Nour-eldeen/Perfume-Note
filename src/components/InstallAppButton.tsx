@@ -65,12 +65,41 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
       (window as any).deferredInstallPrompt = null;
     };
 
+    // ─── لما المستخدم يرجع للتاب بعد ما يحذف التطبيق ───
+    // Chrome على الموبايل بيطلق beforeinstallprompt بعد visibility change
+    // هنا بنتحقق: لو مش standalone ومش عندنا deferredPrompt → ممكن التطبيق اتحذف
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return;
+
+      // لو التطبيق مش شغال standalone → مش مثبت
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as any).standalone === true;
+
+      if (!isStandalone) {
+        // إذا عندنا deferredPrompt → كان البرنامج مش مثبت أصلاً
+        // إذا مفيش deferredPrompt → Chrome لسه ما بعتوش بعد الحذف، ننتظر قليلاً
+        if ((window as any).deferredInstallPrompt) {
+          localStorage.removeItem(INSTALLED_STORAGE_KEY);
+          setIsInstalled(false);
+          setDeferredPrompt((window as any).deferredInstallPrompt);
+        } else if (localStorage.getItem(INSTALLED_STORAGE_KEY) === "true") {
+          // التطبيق كان مثبت لكن مفيش standalone → على الأرجح اتحذف
+          // Chrome سيرسل beforeinstallprompt قريباً، لكن نمسح الكاش فوراً
+          localStorage.removeItem(INSTALLED_STORAGE_KEY);
+          setIsInstalled(false);
+        }
+      }
+    };
+
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleAppInstalled);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
