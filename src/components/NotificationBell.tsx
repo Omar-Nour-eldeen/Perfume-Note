@@ -3,6 +3,7 @@ import { useNotifications, markNotificationAsRead, markAllNotificationsAsRead } 
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
   const { user, profile } = useAuth();
   const { notifications, unreadCount } = useNotifications();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
 
@@ -94,37 +96,53 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
   const handleNavigate = (linkString: string, notifType?: string) => {
     setSelectedNotification(null);
 
-    // Non-admin: open chat widget
-    if (!profile?.is_admin && (linkString === "#chat" || linkString === "open_chat" || (!linkString && notifType === "new_chat_message"))) {
+    if (!linkString && !notifType) return;
+
+    const isChat = notifType === "new_chat_message"
+      || linkString === "#chat"
+      || linkString === "open_chat"
+      || linkString?.includes("openChat");
+
+    // 1. العميل: إشعار شات → افتح نافذة الشات مباشرةً
+    if (!profile?.is_admin && isChat) {
       window.dispatchEvent(new Event("open-chat-widget"));
       return;
     }
 
-    // Admin chat notification
-    if (profile?.is_admin && notifType === "new_chat_message") {
+    // 2. الآدمن: إشعار شات → صفحة /admin/chat مع اختيار الجلسة
+    if (profile?.is_admin && isChat) {
       let targetLink = linkString;
-      if (!targetLink || targetLink === "#chat" || targetLink === "open_chat") {
+      if (!targetLink || targetLink === "#chat" || targetLink === "open_chat" || targetLink?.includes("openChat")) {
         targetLink = "/admin/chat";
       }
 
       const onChatPage = window.location.pathname.startsWith("/admin/chat");
-
       if (onChatPage) {
-        // Already on the chat page → dispatch event so the listener picks it up immediately
         let sessionId: string | null = null;
         if (targetLink.includes("sessionId=")) {
           try { sessionId = new URL(targetLink, window.location.origin).searchParams.get("sessionId"); } catch { }
         }
         window.dispatchEvent(new CustomEvent("select-admin-chat-session", { detail: { sessionId } }));
       } else {
-        // On a different page → full reload to the URL (sessionId in URL, picked up by Route.useSearch)
-        window.location.href = targetLink;
+        router.navigate({ to: targetLink as any });
       }
       return;
     }
 
+    // 3. أي إشعار آخر (طلبات، مرتجعات، إلخ) → TanStack Router navigation بدون ريفريش
     if (!linkString) return;
-    window.location.href = linkString;
+
+    // فصل المسار عن query params
+    const [targetPath, queryString] = linkString.split("?");
+    const searchObj: Record<string, string> = {};
+    if (queryString) {
+      new URLSearchParams(queryString).forEach((v, k) => { searchObj[k] = v; });
+    }
+
+    router.navigate({
+      to: targetPath as any,
+      search: Object.keys(searchObj).length ? searchObj : undefined,
+    });
   };
 
   if (!user) return null;
@@ -186,7 +204,7 @@ export function NotificationBell({ isSolid = true }: NotificationBellProps) {
                         await markNotificationAsRead(notification.id);
                         queryClient.invalidateQueries({ queryKey: ["notifications"] });
                       }
-                      setSelectedNotification(notification);
+                      handleNavigate(notification.link ?? "", notification.type);
                     }}
                   >
                     <div className="flex gap-3">

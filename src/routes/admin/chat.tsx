@@ -264,11 +264,11 @@ function AdminChat() {
       await createNotification({
         user_id: clientId,
         type: "new_chat_message",
-        title_ar: "رسالة جديدة من الدعم",
-        title_en: "New message from support",
+        title_ar: "رسالة جديدة من الدعم 💬",
+        title_en: "New message from support 💬",
         body_ar: currentInput,
         body_en: currentInput,
-        link: "#chat",
+        link: "/?openChat=true",
       });
     }
   };

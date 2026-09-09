@@ -276,11 +276,60 @@ function useProductsRealtime() {
   }, [queryClient]);
 }
 
-
 /**
- * Whenever a user is logged in and Notification permission is 'granted',
- * silently ensure the Web Push subscription is registered in Supabase.
+ * استقبال رسائل SW_NAVIGATE من السيرفيس وركر لما يضغط المستخدم على إشعار المتصفح
+ * بينتقل بشكل SPA بدون ريفريش للصفحة
  */
+function usePushNotificationNavigator() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const handleSwMessage = (event: MessageEvent) => {
+      const msg = event.data;
+      if (!msg) return;
+
+      // رسالة navigate عامة من السيرفيس وركر
+      if (msg.type === 'SW_NAVIGATE' && msg.url) {
+        const relativeUrl: string = msg.url;
+        const isChat = relativeUrl.includes('openChat') || relativeUrl.includes('open_chat') || relativeUrl === '#chat';
+
+        if (isChat) {
+          // الشات: نبعت إشارة لفتح الويجت
+          window.dispatchEvent(new Event('open-chat-widget'));
+        } else {
+          // باقي الروابط: navigate سلسل بدون ريفريش
+          try {
+            const [path, queryString] = relativeUrl.split('?');
+            const searchObj: Record<string, string> = {};
+            if (queryString) {
+              new URLSearchParams(queryString).forEach((v, k) => { searchObj[k] = v; });
+            }
+            router.navigate({
+              to: path as any,
+              search: Object.keys(searchObj).length ? searchObj : undefined,
+            });
+          } catch (e) {
+            // Fallback لو الرابط مش valid
+            window.location.href = msg.absoluteUrl || relativeUrl;
+          }
+        }
+      }
+
+      // رسالة الشات (legacy)
+      if (msg.type === 'OPEN_CHAT_WIDGET') {
+        window.dispatchEvent(new Event('open-chat-widget'));
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+    };
+  }, [router]);
+}
+
 function useAutoPushSubscribe() {
   const { user, profile } = useAuth();
 
@@ -310,6 +359,7 @@ function AppInner() {
   useCartSync();
   useProductsRealtime();
   useAutoPushSubscribe();
+  usePushNotificationNavigator();
   return null;
 }
 

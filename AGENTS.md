@@ -8,3 +8,7 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+## Workflow Rules
+- **Do NOT auto-push to GitHub**: After making code changes, do NOT run `git push` automatically. Always let the user test locally first, and only push when the user explicitly requests or approves pushing to GitHub.
+

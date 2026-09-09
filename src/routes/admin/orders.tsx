@@ -576,12 +576,12 @@ function AdminOrders() {
       // Also send a notification about the new message
       await createNotification({
         user_id: selectedUserId,
-        type: "system",
-        title_ar: "رسالة جديدة من الدعم",
-        title_en: "New message from support",
+        type: "new_chat_message",
+        title_ar: "رسالة جديدة من الدعم 💬",
+        title_en: "New message from support 💬",
         body_ar: messageBody,
         body_en: messageBody,
-        link: "#chat",
+        link: "/?openChat=true",
       });
 
       toast.success(ar ? "تم إرسال الرسالة بنجاح للعميل" : "Message sent successfully to customer");

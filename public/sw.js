@@ -3,7 +3,7 @@
 // يعمل في خلفية المتصفح حتى بعد إغلاق التطبيق
 // =====================================================
 
-const CACHE_NAME = 'perfume-note-sw-v1';
+const CACHE_NAME = 'perfume-note-sw-v3';
 
 // ─── Install & Activate ───────────────────────────
 self.addEventListener('install', (event) => {
@@ -90,9 +90,9 @@ self.addEventListener('push', (event) => {
 });
 
 // ─── Notification Click ───────────────────────────
-// عند ضغط المستخدم على الإشعار → يفتح الموقع
+// عند ضغط المستخدم على الإشعار → ننقله للرابط الصح بدون ريفريش
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event.action);
+  console.log('[SW] Notification clicked:', event.action, event.notification.data);
   event.notification.close();
 
   if (event.action === 'close') return;
@@ -108,13 +108,17 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // لو الموقع مفتوح → نفوكس عليه
-      for (const client of clientList) {
-        if (client.url === absoluteUrl && 'focus' in client) {
-          return client.focus();
-        }
+      if (clientList.length > 0) {
+        // الموقع مفتوح → نفوكس عليه ونبعتله رسالة للـ navigate للرابط الصح
+        const client = clientList[0];
+        client.postMessage({
+          type: 'SW_NAVIGATE',
+          url: targetUrl, // المسار النسبي (مثل /?openChat=true أو /account?orderId=xxx)
+          absoluteUrl,
+        });
+        return client.focus();
       }
-      // لو مش مفتوح → افتح نافذة جديدة
+      // الموقع مغلق → افتح نافذة جديدة بالرابط الصح
       if (self.clients.openWindow) {
         return self.clients.openWindow(absoluteUrl);
       }

@@ -36,14 +36,61 @@ export function ChatWidget() {
   // Session ID is always user.id for logged-in users
   const sessionId = user ? `user_${user.id}` : null;
 
-  // Listen for external open chat events (e.g. clicking chat notifications)
+  // Listen for external open chat events (e.g. clicking chat notifications, push notifications, URL params)
   useEffect(() => {
     const handleOpenChat = () => {
       setIsOpen(true);
+      setUnreadCount(0);
     };
+
+    // 1. Custom DOM Event (from NotificationBell or internal calls)
     window.addEventListener("open-chat-widget", handleOpenChat);
+
+    // 2. Service Worker Message (when clicking push notification while site is already open)
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === "OPEN_CHAT_WIDGET") {
+        setIsOpen(true);
+        setUnreadCount(0);
+      }
+    };
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("message", handleSwMessage);
+    }
+
+    // 3. URL Parameter or Hash check on mount / page load
+    const checkUrlForChat = () => {
+      const href = window.location.href;
+      if (href.includes("openChat") || href.includes("open_chat") || window.location.hash === "#chat") {
+        setIsOpen(true);
+        setUnreadCount(0);
+        try {
+          const url = new URL(href);
+          url.searchParams.delete("openChat");
+          url.searchParams.delete("open_chat");
+          const cleanUrl = url.searchParams.toString()
+            ? `${url.pathname}?${url.searchParams.toString()}`
+            : url.pathname + (window.location.hash === "#chat" ? "" : url.hash);
+          window.history.replaceState(null, "", cleanUrl);
+        } catch (e) { }
+      }
+    };
+
+    checkUrlForChat();
+    const interval = setInterval(checkUrlForChat, 300);
+    const timeout = setTimeout(() => clearInterval(interval), 3000);
+
+    window.addEventListener("hashchange", checkUrlForChat);
+    window.addEventListener("popstate", checkUrlForChat);
+
     return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
       window.removeEventListener("open-chat-widget", handleOpenChat);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("message", handleSwMessage);
+      }
+      window.removeEventListener("hashchange", checkUrlForChat);
+      window.removeEventListener("popstate", checkUrlForChat);
     };
   }, []);
 
