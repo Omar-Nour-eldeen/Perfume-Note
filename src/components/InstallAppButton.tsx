@@ -67,6 +67,7 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
       // التطبيق اتنزل على الجهاز فعلاً → دلوقتي نبعت toast النجاح
       // id ثابت عشان لو في أكتر من instance من الـ component (float + navbar + banner)
       // Sonner بيتجاهل التكرار ويظهر toast واحدة بس
+      localStorage.removeItem("pn_notif_banner_dismissed");
       toast.success(arRef.current ? "تم تثبيت التطبيق بنجاح! 🎉" : "App installed successfully! 🎉", {
         id: "pwa-app-installed",
       });

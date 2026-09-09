@@ -1,14 +1,18 @@
 // =====================================================
 // NotificationPromptBanner
-// بانر يظهر مرة واحدة للمستخدم لتفعيل الإشعارات
-// يعتمد على User Gesture (كليك) لضمان عمله على Firefox
+// بانر يظهر للمستخدم لتفعيل الإشعارات
 // =====================================================
 
 import { useState, useEffect } from "react";
 import { Bell, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { isPushSupported, subscribeToPush, getPushSubscriptionStatus, watchPushPermission } from "@/lib/push-notifications";
+import {
+  isPushSupported,
+  subscribeToPush,
+  getPushSubscriptionStatus,
+  watchPushPermission,
+} from "@/lib/push-notifications";
 import { cn } from "@/lib/utils";
 
 const DISMISSED_KEY = "pn_notif_banner_dismissed";
@@ -22,19 +26,43 @@ export function NotificationPromptBanner() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user || !profile || !isPushSupported()) return;
+    if (!isPushSupported()) return;
 
-    // لا تظهر لو المستخدم سبق وأخفاها
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as any).standalone === true;
+
+    // في تطبيق الموبايل (standalone)، نظهر البانر دائمًا طالما الإشعارات غير مفعّلة
+    // في المتصفح العادي، نحترم عدم الرغبة لو المستخدم أغلق البانر سابقاً
     const dismissed = localStorage.getItem(DISMISSED_KEY);
-    if (dismissed) return;
+    if (dismissed && !isStandalone) return;
 
-    // فحص الحالة الحالية — إذا لم يفعّل بعد نظهر البانر
     let timer: any;
-    getPushSubscriptionStatus().then((status) => {
-      if (status !== "granted") {
-        timer = setTimeout(() => setVisible(true), 1200);
+
+    const checkAndShow = async () => {
+      const status = await getPushSubscriptionStatus();
+      if (status !== "granted" && status !== "denied") {
+        // في وضع standalone على Android Chrome نحاول طلب الإذن فوراً لو المتصفح يدعم
+        if (isStandalone && "Notification" in window && Notification.permission === "default") {
+          try {
+            const perm = await Notification.requestPermission();
+            if (perm === "granted") {
+              if (user?.id) {
+                await subscribeToPush(user.id, profile?.is_admin || false);
+              }
+              return; // تم التفعيل تلقائياً
+            }
+          } catch (e) {
+            console.warn("[Push] Auto requestPermission in standalone failed/requires gesture:", e);
+          }
+        }
+
+        // إظهار البانر للمستخدم بعد تأخير بسيط (1 ثانية)
+        timer = setTimeout(() => setVisible(true), 1000);
       }
-    });
+    };
+
+    void checkAndShow();
 
     const unwatch = watchPushPermission((status) => {
       if (status === "granted") {
@@ -49,16 +77,22 @@ export function NotificationPromptBanner() {
   }, [user?.id, profile?.is_admin]);
 
   const handleEnable = async () => {
-    if (!user || !profile) return;
     setLoading(true);
     try {
-      // هذا الكليك هو User Gesture → يعمل على Firefox وChrome بالكامل
-      await subscribeToPush(user.id, profile.is_admin);
+      if (user?.id) {
+        await subscribeToPush(user.id, profile?.is_admin || false);
+      } else {
+        if ("Notification" in window && Notification.permission === "default") {
+          await Notification.requestPermission();
+        }
+      }
       const status = await getPushSubscriptionStatus();
       if (status === "granted") {
         setVisible(false);
         localStorage.setItem(DISMISSED_KEY, "1");
       }
+    } catch (err) {
+      console.error("[Push] Enable notification error:", err);
     } finally {
       setLoading(false);
     }

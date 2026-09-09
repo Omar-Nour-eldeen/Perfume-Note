@@ -278,40 +278,23 @@ function useProductsRealtime() {
 
 
 /**
- * When the PWA is opened in standalone mode (i.e. the user already installed it)
- * and the browser's Notification permission is already 'granted',
- * we silently re-subscribe the push endpoint in Supabase so notifications
- * continue working without asking the user again.
+ * Whenever a user is logged in and Notification permission is 'granted',
+ * silently ensure the Web Push subscription is registered in Supabase.
  */
-function usePwaResubscribe() {
+function useAutoPushSubscribe() {
   const { user, profile } = useAuth();
 
   useEffect(() => {
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as any).standalone === true;
-
-    if (!isStandalone) return;
     if (!isPushSupported()) return;
     if (Notification.permission !== "granted") return;
     if (!user?.id) return;
 
-    // Re-subscribe silently (subscribeToPush skips requestPermission when already granted)
     const resubscribe = async () => {
       try {
         await registerServiceWorker();
-        const registration = await navigator.serviceWorker.ready;
-        // Check if we already have a valid subscription in this standalone context
-        const existing = await registration.pushManager.getSubscription();
-        if (existing) {
-          console.log("[PWA] Push subscription already active in standalone mode.");
-          return;
-        }
-        // No subscription yet in standalone → re-subscribe silently
-        console.log("[PWA] Re-subscribing push in standalone mode...");
         await subscribeToPush(user.id, profile?.is_admin ?? false);
       } catch (err) {
-        console.warn("[PWA] Silent re-subscribe failed:", err);
+        console.warn("[Push] Silent push subscribe failed:", err);
       }
     };
 
@@ -326,7 +309,7 @@ function usePwaResubscribe() {
 function AppInner() {
   useCartSync();
   useProductsRealtime();
-  usePwaResubscribe();
+  useAutoPushSubscribe();
   return null;
 }
 
