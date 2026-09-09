@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Download, Smartphone, Sparkles } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Download, Smartphone, Sparkles, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { registerServiceWorker } from "@/lib/push-notifications";
@@ -21,6 +21,10 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  // true بعد ما المستخدم يقبل الـ prompt، يفضل كدة لغاية ما appinstalled يطلق
+  const [isInstalling, setIsInstalling] = useState(false);
+  const arRef = useRef(ar);
+  arRef.current = ar;
 
   // Firefox Desktop لا يدعم PWA install prompt نهائياً
   const isFirefoxDesktop =
@@ -47,22 +51,22 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     }
 
     // ─── نسجّل المستمعين دايماً ───
-    // حتى لو التطبيق مثبت، لازم نسمع beforeinstallprompt
-    // عشان لو المستخدم عمل uninstall نكتشفه فوراً بدون refresh
     const SESSION_RELOAD_KEY = "pwa_reload_done";
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       (window as any).deferredInstallPrompt = e;
       setDeferredPrompt(e);
-      // Chrome بعت الحدث → التطبيق مش موجود → أظهر الزر فوراً
       localStorage.removeItem(INSTALLED_STORAGE_KEY);
       setIsInstalled(false);
-      // امسح الـ flag عشان لو المستخدم ثبّت وحذف تاني نقدر نكتشفه
+      setIsInstalling(false);
       sessionStorage.removeItem(SESSION_RELOAD_KEY);
     };
 
     const handleAppInstalled = () => {
+      // التطبيق اتنزل على الجهاز فعلاً → دلوقتي نبعت toast النجاح
+      toast.success(arRef.current ? "تم تثبيت التطبيق بنجاح! 🎉" : "App installed successfully! 🎉");
+      setIsInstalling(false);
       setIsInstalled(true);
       localStorage.setItem(INSTALLED_STORAGE_KEY, "true");
       setDeferredPrompt(null);
@@ -70,18 +74,15 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     };
 
     // ─── لما المستخدم يرجع للتاب بعد ما يحذف التطبيق ───
-    // Chrome بيطلق beforeinstallprompt فقط عند تحميل الصفحة
-    // → نعمل reload تلقائي مرة واحدة لكل session لما نكتشف التطبيق "ظاهر مثبت" بس مش standalone
     const handleVisibilityChange = () => {
       if (document.visibilityState !== "visible") return;
-      if (sessionStorage.getItem(SESSION_RELOAD_KEY)) return; // سبق عملنا reload هذا الـ session
+      if (sessionStorage.getItem(SESSION_RELOAD_KEY)) return;
 
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         (navigator as any).standalone === true;
 
       if (!isStandalone && localStorage.getItem(INSTALLED_STORAGE_KEY) === "true") {
-        // نحدد الـ flag الأول عشان ما نعملش loop، ثم نعمل reload
         sessionStorage.setItem(SESSION_RELOAD_KEY, "true");
         window.location.reload();
       }
@@ -105,14 +106,14 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
       promptObj.prompt();
       const { outcome } = await promptObj.userChoice;
       if (outcome === "accepted") {
-        setIsInstalled(true);
-        localStorage.setItem(INSTALLED_STORAGE_KEY, "true");
+        // المستخدم قبل → نبدأ حالة التحميل وننتظر appinstalled
+        setIsInstalling(true);
         setDeferredPrompt(null);
         (window as any).deferredInstallPrompt = null;
-        toast.success(ar ? "تم تثبيت التطبيق بنجاح! 🎉" : "App installed successfully! 🎉");
       }
     } catch (err) {
       console.error("[PWA] Install prompt error:", err);
+      setIsInstalling(false);
     }
   };
 
@@ -122,17 +123,21 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
   // Firefox Desktop لا يدعم التثبيت -> نخفي الزر بالكامل
   if (isFirefoxDesktop) return null;
 
+  // ── Spinner مشترك ──
+  const Spinner = () => <Loader2 className="w-3.5 h-3.5 animate-spin" />;
+
   if (variant === "link") {
     return (
       <button
         onClick={handleInstallClick}
+        disabled={isInstalling}
         className={cn(
-          "inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline cursor-pointer transition-colors",
+          "inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline cursor-pointer transition-colors disabled:opacity-70 disabled:cursor-not-allowed",
           className
         )}
       >
-        <Download className="w-3.5 h-3.5" />
-        <span>{ar ? "تنزيل التطبيق" : "Download App"}</span>
+        {isInstalling ? <Spinner /> : <Download className="w-3.5 h-3.5" />}
+        <span>{isInstalling ? (ar ? "جارٍ التثبيت…" : "Installing…") : (ar ? "تنزيل التطبيق" : "Download App")}</span>
       </button>
     );
   }
@@ -142,15 +147,16 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     return (
       <button
         onClick={handleInstallClick}
+        disabled={isInstalling}
         className={cn(
-          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all duration-200 cursor-pointer",
+          "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition-all duration-200 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed",
           isTransparent
             ? "bg-white/15 text-white hover:bg-white/25 border border-white/20 backdrop-blur-sm shadow-sm"
             : "bg-gradient-to-r from-primary/90 to-primary text-primary-foreground hover:from-primary hover:to-primary/90 shadow-sm hover:shadow-md"
         )}
       >
-        <Sparkles className="w-3 h-3" />
-        <span>{ar ? "تثبيت التطبيق" : "Install App"}</span>
+        {isInstalling ? <Spinner /> : <Sparkles className="w-3 h-3" />}
+        <span>{isInstalling ? (ar ? "جارٍ التثبيت…" : "Installing…") : (ar ? "تثبيت التطبيق" : "Install App")}</span>
       </button>
     );
   }
@@ -159,19 +165,18 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     return (
       <div
         className={cn(
-          // يظهر بس على موبايل، فوق الـ Add to cart في صفحة المنتج أو فوق الـ Nav في باقي الصفحات
           isProductPage ? "fixed bottom-[136px] left-1/2 -translate-x-1/2 z-40 md:hidden" : "fixed bottom-[72px] left-1/2 -translate-x-1/2 z-40 md:hidden",
-          // أنيميشن دخول
           "animate-in slide-in-from-bottom-4 fade-in duration-500",
           className
         )}
       >
         <button
           onClick={handleInstallClick}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-primary/20"
+          disabled={isInstalling}
+          className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-sm font-semibold bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer border border-primary/20 disabled:opacity-80 disabled:cursor-not-allowed disabled:scale-100"
         >
-          <Sparkles className="w-4 h-4" />
-          <span>{ar ? "تثبيت التطبيق" : "Install App"}</span>
+          {isInstalling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          <span>{isInstalling ? (ar ? "جارٍ التثبيت…" : "Installing…") : (ar ? "تثبيت التطبيق" : "Install App")}</span>
         </button>
       </div>
     );
@@ -196,10 +201,11 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
 
         <button
           onClick={handleInstallClick}
-          className="shrink-0 px-3 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition shadow-sm flex items-center gap-1.5"
+          disabled={isInstalling}
+          className="shrink-0 px-3 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition shadow-sm flex items-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed"
         >
-          <Download className="w-3.5 h-3.5" />
-          <span>{ar ? "تثبيت الآن" : "Install Now"}</span>
+          {isInstalling ? <Spinner /> : <Download className="w-3.5 h-3.5" />}
+          <span>{isInstalling ? (ar ? "جارٍ…" : "Wait…") : (ar ? "تثبيت الآن" : "Install Now")}</span>
         </button>
       </div>
     );
@@ -208,13 +214,14 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
   return (
     <button
       onClick={handleInstallClick}
+      disabled={isInstalling}
       className={cn(
-        "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-sm cursor-pointer",
+        "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition shadow-sm cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed",
         className
       )}
     >
-      <Download className="w-4 h-4" />
-      <span>{ar ? "تنزيل التطبيق" : "Download App"}</span>
+      {isInstalling ? <Spinner /> : <Download className="w-4 h-4" />}
+      <span>{isInstalling ? (ar ? "جارٍ التثبيت…" : "Installing…") : (ar ? "تنزيل التطبيق" : "Download App")}</span>
     </button>
   );
 }
