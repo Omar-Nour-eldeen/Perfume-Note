@@ -28,25 +28,30 @@ export function NotificationPromptBanner() {
   useEffect(() => {
     if (!isPushSupported()) return;
 
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as any).standalone === true;
+    // 1. لو الإذن مفعّل بالفعل أو محظور بالكامل → لا تظهر البانر نهائياً
+    if ("Notification" in window && Notification.permission !== "default") {
+      return;
+    }
 
-    // في تطبيق الموبايل (standalone)، نظهر البانر دائمًا طالما الإشعارات غير مفعّلة
-    // في المتصفح العادي، نحترم عدم الرغبة لو المستخدم أغلق البانر سابقاً
+    // 2. لو المستخدم أغلق البانر سابقاً → احترم رغبته ولا تظهر البانر
     const dismissed = localStorage.getItem(DISMISSED_KEY);
-    if (dismissed && !isStandalone) return;
+    if (dismissed) return;
 
     let timer: any;
 
     const checkAndShow = async () => {
       const status = await getPushSubscriptionStatus();
-      if (status !== "granted" && status !== "denied") {
+      if (status === "default") {
+        const isStandalone =
+          window.matchMedia("(display-mode: standalone)").matches ||
+          (navigator as any).standalone === true;
+
         // في وضع standalone على Android Chrome نحاول طلب الإذن فوراً لو المتصفح يدعم
         if (isStandalone && "Notification" in window && Notification.permission === "default") {
           try {
             const perm = await Notification.requestPermission();
             if (perm === "granted") {
+              localStorage.setItem(DISMISSED_KEY, "1");
               if (user?.id) {
                 await subscribeToPush(user.id, profile?.is_admin || false);
               }
@@ -57,16 +62,17 @@ export function NotificationPromptBanner() {
           }
         }
 
-        // إظهار البانر للمستخدم بعد تأخير بسيط (1 ثانية)
-        timer = setTimeout(() => setVisible(true), 1000);
+        // إظهار البانر للمستخدم بعد تأخير بسيط
+        timer = setTimeout(() => setVisible(true), 1500);
       }
     };
 
     void checkAndShow();
 
     const unwatch = watchPushPermission((status) => {
-      if (status === "granted") {
+      if (status === "granted" || status === "denied") {
         setVisible(false);
+        localStorage.setItem(DISMISSED_KEY, "1");
       }
     });
 
