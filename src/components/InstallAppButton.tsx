@@ -68,17 +68,33 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     // ─── لما المستخدم يرجع للتاب بعد ما يحذف التطبيق ───
     // Chrome على الموبايل بيطلق beforeinstallprompt فقط عند تحميل الصفحة من جديد
     // لذلك لو اكتشفنا إن التطبيق اتحذف → نعمل reload تلقائي
+    // مهم: ما نمسحش localStorage قبل الـ reload عشان:
+    //   - لو التطبيق لسه مثبت → Chrome مش هيبعت beforeinstallprompt → الزرار يفضل مخفي ✓
+    //   - لو التطبيق اتحذف → Chrome هيبعت beforeinstallprompt → handleBeforeInstallPrompt يمسح localStorage → الزرار يظهر ✓
+    const UNINSTALL_CHECK_KEY = "pwa_uninstall_check_done";
+
+    let hiddenAt = 0;
     const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
       if (document.visibilityState !== "visible") return;
+
+      // منع الـ reload أكتر من مرة في نفس الـ session
+      if (sessionStorage.getItem(UNINSTALL_CHECK_KEY)) return;
+
+      // لو الصفحة اتخفت أقل من ثانيتين → مجرد switch سريع، مش حذف
+      const hiddenMs = hiddenAt ? Date.now() - hiddenAt : 0;
+      if (hiddenMs < 2000) return;
 
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         (navigator as any).standalone === true;
 
-      // لو مش standalone + localStorage بيقول مثبت → التطبيق اتحذف على الأرجح
+      // لو مش standalone + localStorage بيقول مثبت → ممكن التطبيق اتحذف
       if (!isStandalone && localStorage.getItem(INSTALLED_STORAGE_KEY) === "true") {
-        // نمسح الكاش ونعمل reload عشان Chrome يطلق beforeinstallprompt من جديد
-        localStorage.removeItem(INSTALLED_STORAGE_KEY);
+        sessionStorage.setItem(UNINSTALL_CHECK_KEY, "true");
         window.location.reload();
       }
     };
