@@ -49,6 +49,8 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     // ─── نسجّل المستمعين دايماً ───
     // حتى لو التطبيق مثبت، لازم نسمع beforeinstallprompt
     // عشان لو المستخدم عمل uninstall نكتشفه فوراً بدون refresh
+    const SESSION_RELOAD_KEY = "pwa_reload_done";
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       (window as any).deferredInstallPrompt = e;
@@ -56,6 +58,8 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
       // Chrome بعت الحدث → التطبيق مش موجود → أظهر الزر فوراً
       localStorage.removeItem(INSTALLED_STORAGE_KEY);
       setIsInstalled(false);
+      // امسح الـ flag عشان لو المستخدم ثبّت وحذف تاني نقدر نكتشفه
+      sessionStorage.removeItem(SESSION_RELOAD_KEY);
     };
 
     const handleAppInstalled = () => {
@@ -66,35 +70,19 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     };
 
     // ─── لما المستخدم يرجع للتاب بعد ما يحذف التطبيق ───
-    // Chrome على الموبايل بيطلق beforeinstallprompt فقط عند تحميل الصفحة من جديد
-    // لذلك لو اكتشفنا إن التطبيق اتحذف → نعمل reload تلقائي
-    // مهم: ما نمسحش localStorage قبل الـ reload عشان:
-    //   - لو التطبيق لسه مثبت → Chrome مش هيبعت beforeinstallprompt → الزرار يفضل مخفي ✓
-    //   - لو التطبيق اتحذف → Chrome هيبعت beforeinstallprompt → handleBeforeInstallPrompt يمسح localStorage → الزرار يظهر ✓
-    const UNINSTALL_CHECK_KEY = "pwa_uninstall_check_done";
-
-    let hiddenAt = 0;
+    // Chrome بيطلق beforeinstallprompt فقط عند تحميل الصفحة
+    // → نعمل reload تلقائي مرة واحدة لكل session لما نكتشف التطبيق "ظاهر مثبت" بس مش standalone
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        hiddenAt = Date.now();
-        return;
-      }
       if (document.visibilityState !== "visible") return;
-
-      // منع الـ reload أكتر من مرة في نفس الـ session
-      if (sessionStorage.getItem(UNINSTALL_CHECK_KEY)) return;
-
-      // لو الصفحة اتخفت أقل من ثانيتين → مجرد switch سريع، مش حذف
-      const hiddenMs = hiddenAt ? Date.now() - hiddenAt : 0;
-      if (hiddenMs < 2000) return;
+      if (sessionStorage.getItem(SESSION_RELOAD_KEY)) return; // سبق عملنا reload هذا الـ session
 
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
         (navigator as any).standalone === true;
 
-      // لو مش standalone + localStorage بيقول مثبت → ممكن التطبيق اتحذف
       if (!isStandalone && localStorage.getItem(INSTALLED_STORAGE_KEY) === "true") {
-        sessionStorage.setItem(UNINSTALL_CHECK_KEY, "true");
+        // نحدد الـ flag الأول عشان ما نعملش loop، ثم نعمل reload
+        sessionStorage.setItem(SESSION_RELOAD_KEY, "true");
         window.location.reload();
       }
     };
