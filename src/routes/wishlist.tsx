@@ -6,9 +6,11 @@ import { StoreLayout } from "@/components/StoreLayout";
 import { LuxuryProductCard } from "@/components/LuxuryProductCard";
 import { useI18n } from "@/lib/i18n";
 import { useNavigate, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@/lib/types";
 import { Heart } from "lucide-react";
 import { useWishlistStore } from "@/lib/wishlist-store";
+import { getCachedProducts } from "@/lib/data-cache";
 
 export const Route = createFileRoute("/wishlist")({
   component: WishlistPage,
@@ -19,11 +21,16 @@ function WishlistPage() {
   const ar = language === "ar";
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [products, setProducts] = useState<Product[]>([]);
   const [fetching, setFetching] = useState(true);
 
   // Track wishlist store IDs — when an item is removed from the store, remove it from local list instantly
   const wishlistIds = useWishlistStore((s) => s.productIds);
+  const { data: activeProducts = [], isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["products"],
+    queryFn: getCachedProducts,
+    staleTime: 0,
+  });
+  const products = activeProducts.filter((product) => wishlistIds.includes(product.id));
 
   useEffect(() => {
     if (!loading && !user) {
@@ -33,10 +40,44 @@ function WishlistPage() {
     }
   }, [user, loading]);
 
-  // Remove product from local list as soon as it's removed from the store
   useEffect(() => {
-    setProducts((prev) => prev.filter((p) => wishlistIds.includes(p.id)));
-  }, [wishlistIds]);
+    const refreshWishlist = () => {
+      if (user?.id) fetchWishlist();
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "perfume-note:refresh-at") refreshWishlist();
+    };
+    window.addEventListener("storage", handleStorage);
+
+    let broadcastChannel: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      broadcastChannel = new BroadcastChannel("perfume-note-sync");
+      broadcastChannel.onmessage = (event) => {
+        if (event.data === "products-updated") refreshWishlist();
+      };
+    }
+
+    const channel = supabase
+      .channel("wishlist-product-watch")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "products" },
+        () => fetchWishlist()
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "products" },
+        () => fetchWishlist()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener("storage", handleStorage);
+      broadcastChannel?.close();
+    };
+  }, [user?.id]);
 
   const fetchWishlist = async () => {
     if (!user) return;
@@ -56,9 +97,8 @@ function WishlistPage() {
         .map((item: any) => item.products)
         .filter(Boolean) as Product[];
 
-      setProducts(mapped);
-      // Sync local store to fix the Navbar badge count if items were deleted remotely
-      useWishlistStore.getState().setWishlist(mapped.map(p => p.id));
+      // Preserve hidden products in the local store so they return when reactivated.
+      useWishlistStore.getState().setWishlist(mapped.map((product) => product.id));
     } catch (err) {
       console.error(err);
     } finally {
@@ -66,7 +106,7 @@ function WishlistPage() {
     }
   };
 
-  if (loading || fetching) {
+  if (loading || fetching || productsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <span className="text-muted-foreground">{ar ? "جاري التحميل..." : "Loading wishlist..."}</span>

@@ -9,11 +9,13 @@ export interface CartItem {
 
 export interface CartStore {
   items: CartItem[];
+  hiddenProductIds: string[];
   isLoading: boolean;
   addItem: (product: Product, quantity?: number) => boolean;
   updateQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   syncProduct: (product: Product) => void;
+  setProductHidden: (productId: string, hidden: boolean) => void;
   clearCart: () => void;
 }
 
@@ -21,6 +23,7 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      hiddenProductIds: [],
       isLoading: false,
 
       addItem: (product, quantity = 1) => {
@@ -42,7 +45,10 @@ export const useCartStore = create<CartStore>()(
             ),
           });
         } else {
-          set({ items: [...items, { product, quantity }] });
+          set({
+            items: [...items, { product, quantity }],
+            hiddenProductIds: get().hiddenProductIds.filter((id) => id !== product.id),
+          });
         }
         return true;
       },
@@ -83,7 +89,17 @@ export const useCartStore = create<CartStore>()(
             ),
           });
         }
+        get().setProductHidden(product.id, product.is_active === false);
       },
+
+      setProductHidden: (productId, hidden) =>
+        set((state) => ({
+          hiddenProductIds: hidden
+            ? state.hiddenProductIds.includes(productId)
+              ? state.hiddenProductIds
+              : [...state.hiddenProductIds, productId]
+            : state.hiddenProductIds.filter((id) => id !== productId),
+        })),
 
       clearCart: () => set({ items: [] }),
     }),

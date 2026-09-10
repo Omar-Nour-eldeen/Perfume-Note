@@ -178,15 +178,8 @@ function AdminProducts() {
           .eq("id", editingProduct.id);
         if (error) throw error;
 
-        // If product is deactivated, remove it from all users' wishlists
-        if (!isActive) {
-          await supabase.from("wishlists").delete().eq("product_id", editingProduct.id);
-          useCartStore.getState().removeItem(editingProduct.id);
-          useWishlistStore.getState().removeFromWishlist(editingProduct.id);
-        } else {
-          // If product is updated, sync its new data to the local cart instantly
-          useCartStore.getState().syncProduct({ ...editingProduct, ...payload } as Product);
-        }
+        // Keep cart and wishlist relationships so hidden products return when reactivated.
+        useCartStore.getState().syncProduct({ ...editingProduct, ...payload } as Product);
 
         toast.success(ar ? "تم تعديل المنتج بنجاح" : "Product updated successfully");
       } else {
@@ -236,11 +229,7 @@ function AdminProducts() {
       const { error } = await supabase.from("products").update({ is_active: newStatus }).eq("id", product.id);
       if (error) throw error;
       
-      if (!newStatus) {
-        await supabase.from("wishlists").delete().eq("product_id", product.id);
-        useCartStore.getState().removeItem(product.id);
-        useWishlistStore.getState().removeFromWishlist(product.id);
-      }
+      useCartStore.getState().syncProduct({ ...product, is_active: newStatus });
 
       // Notify all clients, tabs, and refetch React Query queries
       notifyProductChange(queryClient, product.id);

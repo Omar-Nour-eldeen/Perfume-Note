@@ -25,7 +25,7 @@ export function CartDrawer() {
   const ar = language === "ar";
   const { user, profile, refreshProfile } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const { items, isLoading, updateQuantity, removeItem, clearCart } = useCartStore();
+  const { items, hiddenProductIds, isLoading, updateQuantity, removeItem, clearCart, setProductHidden } = useCartStore();
 
   // Checkout and promo states
   const [shippingZones, setShippingZones] = useState<ShippingZone[]>([]);
@@ -157,17 +157,21 @@ export function CartDrawer() {
   const verifyCartItems = async () => {
     const currentItems = useCartStore.getState().items;
     if (currentItems.length === 0) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("products")
       .select("id, is_active")
       .in("id", currentItems.map((i) => i.product.id));
-    if (data) {
-      data.forEach((p: any) => {
-        if (p.is_active === false) {
-          useCartStore.getState().removeItem(p['id']);
-        }
-      });
-    }
+    if (error || !data) return;
+
+    const activeIds = new Set(data.map((product) => product.id));
+    currentItems.forEach((item) => {
+      const dbProduct = data.find((product) => product.id === item.product.id);
+      const isActive = Boolean(dbProduct) && dbProduct.is_active !== false;
+      setProductHidden(item.product.id, !isActive);
+      if (dbProduct) {
+        useCartStore.getState().syncProduct({ ...item.product, is_active: dbProduct.is_active });
+      }
+    });
   };
 
   // On mount: verify immediately + subscribe to realtime
@@ -181,9 +185,9 @@ export function CartDrawer() {
         { event: "UPDATE", schema: "public", table: "products" },
         (payload) => {
           const p = (payload as any)['new'] as any;
-          if (p.is_active === false) {
-            useCartStore.getState().removeItem(p['id']);
-          }
+          setProductHidden(p.id, p.is_active === false);
+          const item = useCartStore.getState().items.find((cartItem) => cartItem.product.id === p.id);
+          if (item) useCartStore.getState().syncProduct({ ...item.product, ...p });
         }
       )
       // Handle DELETE events for removed products
@@ -205,7 +209,25 @@ export function CartDrawer() {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    const syncOnProductChange = () => verifyCartItems();
+    let broadcastChannel: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      broadcastChannel = new BroadcastChannel("perfume-note-sync");
+      broadcastChannel.onmessage = (event) => {
+        if (event.data === "products-updated" || event.data?.event === "products-updated") {
+          syncOnProductChange();
+        }
+      };
+    }
+    window.addEventListener("storage", syncOnProductChange);
+    const fallbackInterval = setInterval(syncOnProductChange, 1000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      broadcastChannel?.close();
+      window.removeEventListener("storage", syncOnProductChange);
+      clearInterval(fallbackInterval);
+    };
   }, []);
 
   // While drawer is open: poll every 8s as a guaranteed fallback
@@ -268,8 +290,11 @@ export function CartDrawer() {
     toast.success(ar ? "تم تطبيق كود الخصم بنجاح" : "Coupon applied successfully");
   };
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const visibleItems = items.filter(
+    (item) => item.product.is_active !== false && !hiddenProductIds.includes(item.product.id)
+  );
+  const totalItems = visibleItems.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = visibleItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   // Discount calculation
   let discountAmount = 0;
@@ -290,7 +315,7 @@ export function CartDrawer() {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (items.length === 0) return;
+    if (visibleItems.length === 0) return;
     
     if (!name.trim() || !phone.trim() || !address.trim() || !selectedZone) {
       toast.error(ar ? "يرجى ملء جميع البيانات المطلوبة" : "Please fill in all required fields");
@@ -303,7 +328,7 @@ export function CartDrawer() {
       return;
     }
 
-    const outOfStockItem = items.find(i => i.quantity > (i.product.stock || 0));
+    const outOfStockItem = visibleItems.find(i => i.quantity > (i.product.stock || 0));
     if (outOfStockItem) {
       const title = ar ? outOfStockItem.product.title_ar : outOfStockItem.product.title_en;
       toast.error(ar ? `الكمية المطلوبة من ${title} غير متوفرة في المخزون` : `Requested quantity for ${title} is out of stock`);
@@ -311,7 +336,7 @@ export function CartDrawer() {
     }
 
     // Check user's pending quantity for each product doesn't exceed stock
-    const productIds = items.map(i => i.product.id);
+    const productIds = visibleItems.map(i => i.product.id);
     
     // 1. Get user's pending orders
     let query = supabase.from("orders").select("id").eq("status", "pending");
@@ -334,7 +359,7 @@ export function CartDrawer() {
       pendingItems = itemsData || [];
     }
 
-    for (const item of items) {
+    for (const item of visibleItems) {
       const alreadyPending = pendingItems
         .filter(p => p.product_id === item.product.id)
         .reduce((sum, p) => sum + p.quantity, 0);
@@ -358,7 +383,7 @@ export function CartDrawer() {
 
       if (walletApplied > 0 && user?.id) {
         // Use RPC if wallet is applied
-        const orderItemsPayload = items.map((item) => ({
+        const orderItemsPayload = visibleItems.map((item) => ({
           product_id: item.product.id,
           title: ar ? item.product.title_ar : item.product.title_en,
           price: item.product.price,
@@ -410,7 +435,7 @@ export function CartDrawer() {
         if (oErr) throw oErr;
         orderId = order.id;
 
-        const orderItemsPayload = items.map((item) => ({
+        const orderItemsPayload = visibleItems.map((item) => ({
           order_id: orderId,
           product_id: item.product.id,
           title: ar ? item.product.title_ar : item.product.title_en,
@@ -498,11 +523,11 @@ export function CartDrawer() {
           </SheetDescription>
         </SheetHeader>
 
-        {items.length > 0 && (
+        {visibleItems.length > 0 && (
           <div className="flex-1 flex flex-col gap-6 pt-6">
             {/* Items list */}
             <div className="space-y-3">
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 const title = ar ? item.product.title_ar : item.product.title_en;
                 return (
                   <div key={item.product.id} className="flex gap-4 p-3 rounded-xl border border-border/60 bg-card">

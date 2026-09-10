@@ -5,7 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { siteAssets } from "@/lib/site-assets";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, User, Heart } from "lucide-react";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useCartStore } from "@/lib/cart-store";
@@ -31,12 +31,18 @@ export function Navbar({ transparent = false }: NavbarProps) {
   const queryClient = useQueryClient();
 
   const wishlistIds = useWishlistStore((s) => s.productIds);
-  const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist);
+  const hiddenWishlistIds = useWishlistStore((s) => s.hiddenProductIds);
+  const setWishlistProductHidden = useWishlistStore((s) => s.setProductHidden);
   const cartItems = useCartStore((s) => s.items);
+  const hiddenCartIds = useCartStore((s) => s.hiddenProductIds);
   const removeCartItem = useCartStore((s) => s.removeItem);
   const syncCartProduct = useCartStore((s) => s.syncProduct);
+  const setCartProductHidden = useCartStore((s) => s.setProductHidden);
 
-  const wishlistCount = wishlistIds.length;
+  const wishlistCount = useMemo(
+    () => wishlistIds.filter((id) => !hiddenWishlistIds.includes(id)).length,
+    [wishlistIds, hiddenWishlistIds]
+  );
 
   // Global sync: Check active status of cart & wishlist items on mount
   useEffect(() => {
@@ -54,10 +60,20 @@ export function Navbar({ transparent = false }: NavbarProps) {
         .in("id", Array.from(allIds));
 
       if (data) {
+        const activeIds = new Set(data.map((product) => product.id));
+        allIds.forEach((id) => {
+          const isActive = activeIds.has(id) && data.find((product) => product.id === id)?.is_active !== false;
+          setWishlistProductHidden(id, !isActive);
+          setCartProductHidden(id, !isActive);
+        });
         data.forEach((dbProduct) => {
-          if (!dbProduct.is_active) {
-            removeCartItem(dbProduct.id);
-            removeFromWishlist(dbProduct.id);
+          setWishlistProductHidden(dbProduct.id, dbProduct.is_active === false);
+          setCartProductHidden(dbProduct.id, dbProduct.is_active === false);
+        });
+        data.forEach((dbProduct) => {
+          if (dbProduct.is_active === false) {
+            const cartItem = useCartStore.getState().items.find((item) => item.product.id === dbProduct.id);
+            if (cartItem) syncCartProduct({ ...cartItem.product, is_active: false });
           }
         });
       }
@@ -74,9 +90,13 @@ export function Navbar({ transparent = false }: NavbarProps) {
         (payload) => {
           const updatedProduct = payload.new as any;
           if (updatedProduct.is_active === false) {
-            useCartStore.getState().removeItem(updatedProduct.id);
-            useWishlistStore.getState().removeFromWishlist(updatedProduct.id);
+            setWishlistProductHidden(updatedProduct.id, true);
+            setCartProductHidden(updatedProduct.id, true);
+            const cartItem = useCartStore.getState().items.find((item) => item.product.id === updatedProduct.id);
+            if (cartItem) useCartStore.getState().syncProduct({ ...cartItem.product, ...updatedProduct });
           } else {
+            setWishlistProductHidden(updatedProduct.id, false);
+            setCartProductHidden(updatedProduct.id, false);
             useCartStore.getState().syncProduct(updatedProduct);
           }
           queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -86,10 +106,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
         'postgres_changes',
         { event: 'DELETE', schema: 'public', table: 'products' },
         (payload) => {
-          if (payload.old?.id) {
-            useCartStore.getState().removeItem(payload.old.id);
-            useWishlistStore.getState().removeFromWishlist(payload.old.id);
-          }
+          if (payload.old?.id) useCartStore.getState().removeItem(payload.old.id);
           queryClient.invalidateQueries({ queryKey: ["products"] });
         }
       )
@@ -102,10 +119,26 @@ export function Navbar({ transparent = false }: NavbarProps) {
       )
       .subscribe();
 
+    const syncFromOtherTab = () => syncActiveStatus();
+    let broadcastChannel: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      broadcastChannel = new BroadcastChannel("perfume-note-sync");
+      broadcastChannel.onmessage = (event) => {
+        if (event.data === "products-updated" || event.data?.event === "products-updated") {
+          syncFromOtherTab();
+        }
+      };
+    }
+    window.addEventListener("storage", syncFromOtherTab);
+    const fallbackInterval = setInterval(syncFromOtherTab, 1000);
+
     return () => {
       supabase.removeChannel(channel);
+      broadcastChannel?.close();
+      window.removeEventListener("storage", syncFromOtherTab);
+      clearInterval(fallbackInterval);
     };
-  }, []); // mount only — handlers use getState() for fresh data
+  }, [wishlistIds, cartItems]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
