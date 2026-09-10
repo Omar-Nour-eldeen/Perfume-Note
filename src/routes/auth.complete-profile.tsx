@@ -27,6 +27,8 @@ function CompleteProfilePage() {
   const [phone, setPhone] = useState("");
   const [governorate, setGovernorate] = useState("");
   const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -98,6 +100,8 @@ function CompleteProfilePage() {
       setPhone(profile.phone || "");
       setGovernorate(profile.governorate || "");
       setAddress(profile.address || "");
+      setLatitude(profile.latitude ?? null);
+      setLongitude(profile.longitude ?? null);
       setAvatarUrl(profile.avatar_url || googleAvatar || null);
     }
 
@@ -139,6 +143,8 @@ function CompleteProfilePage() {
           phone: phone.trim(),
           governorate: governorate.trim(),
           address: address.trim(),
+          latitude,
+          longitude,
           avatar_url: avatarUrl || "",
           phone_verified: true,
         })
@@ -383,7 +389,11 @@ function CompleteProfilePage() {
                   id="cp-address"
                   required
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    setLatitude(null);
+                    setLongitude(null);
+                  }}
                   placeholder={
                     ar
                       ? "مثال: شارع النيل، عمارة 5، شقة 3"
@@ -447,7 +457,11 @@ function CompleteProfilePage() {
           if (loc.address) {
             setAddress(loc.address);
           }
+          setLatitude(loc.lat);
+          setLongitude(loc.lng);
         }}
+        initialLat={latitude}
+        initialLng={longitude}
       />
     </div>
   );

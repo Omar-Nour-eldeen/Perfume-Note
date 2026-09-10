@@ -5,6 +5,8 @@ export interface Profile {
   phone: string | null;
   address: string | null;
   governorate: string | null;
+  latitude: number | null;
+  longitude: number | null;
   avatar_url: string | null;
   balance: number;
   is_admin: boolean;

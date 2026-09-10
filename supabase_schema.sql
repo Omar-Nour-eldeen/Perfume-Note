@@ -9,6 +9,8 @@ create table public.profiles (
   phone text,
   address text,
   governorate text,
+  latitude numeric(10, 7),
+  longitude numeric(10, 7),
   avatar_url text,
   balance numeric(10, 2) not null default 0.00,
   is_admin boolean not null default false,

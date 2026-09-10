@@ -123,8 +123,10 @@ export function CartDrawer() {
       setName(profile.name || "");
       setPhone(profile.phone || "");
       setAddress(profile.address || "");
+      setLatitude(profile.latitude ?? null);
+      setLongitude(profile.longitude ?? null);
     }
-  }, [profile?.name, profile?.phone, profile?.address, isOpen]);
+  }, [profile?.name, profile?.phone, profile?.address, profile?.latitude, profile?.longitude, isOpen]);
 
   // Auto-select shipping zone from profile governorate every time cart opens
   // or when profile/zones update — unless user manually picked a zone

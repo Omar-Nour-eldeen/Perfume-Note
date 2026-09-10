@@ -66,6 +66,8 @@ function AccountPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editAddress, setEditAddress] = useState("");
   const [editGovernorate, setEditGovernorate] = useState("");
+  const [editLatitude, setEditLatitude] = useState<number | null>(null);
+  const [editLongitude, setEditLongitude] = useState<number | null>(null);
   const [editLocationModalOpen, setEditLocationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -242,6 +244,8 @@ function AccountPage() {
       setEditPhone(profile.phone || "");
       setEditAddress(profile.address || "");
       setEditGovernorate(profile.governorate || "");
+      setEditLatitude(profile.latitude ?? null);
+      setEditLongitude(profile.longitude ?? null);
     }
     setIsEditing(!isEditing);
   };
@@ -269,6 +273,8 @@ function AccountPage() {
           phone: editPhone.trim(),
           address: editAddress,
           governorate: editGovernorate,
+          latitude: editLatitude,
+          longitude: editLongitude,
           phone_verified: true,
         })
         .eq("id", user.id);
@@ -694,7 +700,16 @@ function AccountPage() {
                 <span className="font-bold block text-muted-foreground mb-1">{ar ? "العنوان" : "Address"}</span>
                 {isEditing ? (
                   <div className="space-y-1.5">
-                    <Input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="h-8 text-sm" placeholder={ar ? "العنوان" : "Address"} />
+                    <Input
+                      value={editAddress}
+                      onChange={(e) => {
+                        setEditAddress(e.target.value);
+                        setEditLatitude(null);
+                        setEditLongitude(null);
+                      }}
+                      className="h-8 text-sm"
+                      placeholder={ar ? "العنوان" : "Address"}
+                    />
                     <Button
                       type="button"
                       variant="outline"
@@ -1419,7 +1434,11 @@ function AccountPage() {
           if (loc.address) {
             setEditAddress(loc.address);
           }
+          setEditLatitude(loc.lat);
+          setEditLongitude(loc.lng);
         }}
+        initialLat={editLatitude}
+        initialLng={editLongitude}
       />
     </StoreLayout>
   );
