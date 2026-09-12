@@ -134,10 +134,7 @@ export function ChatWidget() {
           if (newMsg.is_admin) {
             playNotificationSound();
             if (!isOpen) {
-              setUnreadCount((c) => {
-                const next = c + 1;
-                return next;
-              });
+              setUnreadCount((c) => c + 1);
             }
           }
         }
@@ -262,16 +259,20 @@ export function ChatWidget() {
         >
           {/* Header */}
           <div className="bg-primary p-4 text-white flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-5 w-5" />
-              <span className="font-bold text-sm">
-                {ar ? "الدعم المباشر" : "Live Chat Support"}
-              </span>
-              {/* Online indicator */}
-              <span className="flex items-center gap-1 text-white/70 text-xs">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-300 animate-pulse inline-block" />
-                {ar ? "متاح" : "Online"}
-              </span>
+            <div className="flex items-center gap-2.5">
+              {/* Support avatar */}
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 text-white font-bold text-xs">
+                <MessageSquare className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="font-bold text-sm block leading-tight">
+                  {ar ? "الدعم المباشر" : "Live Chat Support"}
+                </span>
+                <span className="flex items-center gap-1 text-white/70 text-xs">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-300 animate-pulse inline-block" />
+                  {ar ? "متاح" : "Online"}
+                </span>
+              </div>
             </div>
             <button onClick={handleClose} className="text-white/80 hover:text-white transition">
               <X className="h-5 w-5" />
@@ -312,7 +313,13 @@ export function ChatWidget() {
                 {messages.map((msg) => {
                   const isMe = !msg.is_admin;
                   return (
-                    <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                    <div key={msg.id} className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}>
+                      {/* Admin avatar on the left */}
+                      {msg.is_admin && (
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mb-0.5">
+                          <MessageSquare className="h-3 w-3 text-white" />
+                        </div>
+                      )}
                       <div
                         className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${isMe
                           ? "bg-primary text-white rounded-br-none"
@@ -326,6 +333,21 @@ export function ChatWidget() {
                         )}
                         <p className="leading-relaxed">{msg.message}</p>
                       </div>
+                      {/* Customer avatar on the right */}
+                      {isMe && (
+                        <div className="w-6 h-6 rounded-full flex-shrink-0 mb-0.5 bg-primary/10 flex items-center justify-center overflow-hidden">
+                          {profile?.avatar_url ? (
+                            <div
+                              className="w-full h-full rounded-full bg-cover bg-center"
+                              style={{ backgroundImage: `url(${profile.avatar_url})` }}
+                            />
+                          ) : (
+                            <span className="text-[10px] font-bold text-primary">
+                              {(profile?.name || profile?.full_name || user?.email || "?")[0].toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

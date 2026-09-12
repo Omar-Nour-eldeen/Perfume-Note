@@ -240,6 +240,9 @@ create policy "Users can see their own chat messages" on public.chat_messages
 create policy "Anyone can insert chat messages" on public.chat_messages
   for insert with check (true);
 
+create policy "Admins can delete chat messages" on public.chat_messages
+  for delete using (exists (select 1 from public.profiles where profiles.id = auth.uid() and profiles.is_admin = true));
+
 
 -- CONTACT MESSAGES
 create table public.contact_messages (
