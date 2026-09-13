@@ -250,7 +250,7 @@ export function ChatWidget() {
   };
 
   return (
-    <div className={isProductPage ? "fixed bottom-[132px] left-4 lg:bottom-6 lg:left-6 z-40 flex flex-col items-start" : "fixed bottom-[64px] left-4 lg:bottom-6 lg:left-6 z-40 flex flex-col items-start"} dir="ltr">
+    <div className={isProductPage ? "fixed bottom-[132px] left-4 xl:bottom-6 xl:left-6 z-40 flex flex-col items-start" : "fixed bottom-[64px] left-4 xl:bottom-6 xl:left-6 z-40 flex flex-col items-start"} dir="ltr">
       {/* Chat Window */}
       {isOpen && (
         <div

@@ -67,7 +67,7 @@ export function SocialSidebar() {
   };
 
   return (
-    <div className={isProductPage ? "fixed bottom-[132px] right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col items-center gap-2.5" : "fixed bottom-[64px] right-4 lg:bottom-6 lg:right-6 z-40 flex flex-col items-center gap-2.5"}>
+    <div className={isProductPage ? "fixed bottom-[132px] right-4 xl:bottom-6 xl:right-6 z-40 flex flex-col items-center gap-2.5" : "fixed bottom-[64px] right-4 xl:bottom-6 xl:right-6 z-40 flex flex-col items-center gap-2.5"}>
       {/* Social links — slide in when open */}
       <div
         className={`flex flex-col items-center gap-2.5 overflow-hidden transition-all duration-500 ease-in-out ${

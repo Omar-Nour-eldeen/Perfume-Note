@@ -135,7 +135,7 @@ function AdminCategories() {
             <span className="text-muted-foreground">{ar ? "جاري تحميل الأقسام..." : "Loading categories..."}</span>
           ) : (
             <>
-            <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <div className="hidden md:block bg-card border border-border rounded-2xl overflow-x-auto shadow-sm">
               <table className="w-full text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">

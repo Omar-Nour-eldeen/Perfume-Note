@@ -170,7 +170,7 @@ export function InstallAppButton({ className, variant = "button" }: InstallAppBu
     return (
       <div
         className={cn(
-          isProductPage ? "fixed bottom-[136px] left-1/2 -translate-x-1/2 z-40 md:hidden" : "fixed bottom-[72px] left-1/2 -translate-x-1/2 z-40 md:hidden",
+          isProductPage ? "fixed bottom-[136px] left-1/2 -translate-x-1/2 z-40 xl:hidden" : "fixed bottom-[72px] left-1/2 -translate-x-1/2 z-40 xl:hidden",
           "animate-in slide-in-from-bottom-4 fade-in duration-500",
           className
         )}

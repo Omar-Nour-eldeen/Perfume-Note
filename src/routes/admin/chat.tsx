@@ -457,11 +457,11 @@ function AdminChat() {
                       </div>
                     </div>
 
-                    {/* Info Toggle Button for Mobile */}
+                    {/* Info Toggle Button for Mobile / Tablet */}
                     <button
                       type="button"
                       onClick={() => setShowMobileCustomerInfo(true)}
-                      className="md:hidden flex items-center gap-1 text-xs font-bold text-foreground bg-secondary/60 hover:bg-secondary px-2.5 py-1.5 rounded-xl border border-border transition flex-shrink-0"
+                      className="xl:hidden flex items-center gap-1 text-xs font-bold text-foreground bg-secondary/60 hover:bg-secondary px-2.5 py-1.5 rounded-xl border border-border transition flex-shrink-0"
                     >
                       <Info className="h-3.5 w-3.5 text-primary" />
                       <span className="text-[11px]">{ar ? "البيانات" : "Info"}</span>
@@ -527,7 +527,7 @@ function AdminChat() {
 
             {/* Desktop Customer Info Panel */}
             {activeSession && (
-              <div className="hidden md:block w-72 border-s border-border overflow-y-auto flex-shrink-0 bg-background">
+              <div className="hidden xl:block w-72 border-s border-border overflow-y-auto flex-shrink-0 bg-background">
                 <div className="p-3.5 border-b border-border bg-secondary/20">
                   <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5 text-primary" />

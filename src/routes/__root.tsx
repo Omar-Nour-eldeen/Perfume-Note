@@ -301,14 +301,8 @@ function usePushNotificationNavigator() {
         } else {
           // باقي الروابط: navigate سلسل بدون ريفريش
           try {
-            const [path, queryString] = relativeUrl.split('?');
-            const searchObj: Record<string, string> = {};
-            if (queryString) {
-              new URLSearchParams(queryString).forEach((v, k) => { searchObj[k] = v; });
-            }
             router.navigate({
-              to: path as any,
-              search: Object.keys(searchObj).length ? searchObj : undefined,
+              to: relativeUrl as any,
             });
           } catch (e) {
             // Fallback لو الرابط مش valid

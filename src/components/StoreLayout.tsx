@@ -26,7 +26,7 @@ export function StoreLayout({
   className,
 }: StoreLayoutProps) {
   return (
-    <div className={cn("min-h-screen bg-background text-foreground antialiased pb-16 lg:pb-0", className)}>
+    <div className={cn("min-h-screen bg-background text-foreground antialiased pb-16 xl:pb-0", className)}>
       <Navbar transparent={transparentNav} />
       {children}
       {footer && <Footer />}

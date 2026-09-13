@@ -644,8 +644,8 @@ function AdminOrders() {
             <span className="text-muted-foreground">{ar ? "جاري التحميل..." : "Loading..."}</span>
           ) : activeTab === "orders" ? (
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              {/* ── MOBILE: Card layout ── */}
-              <div className="md:hidden divide-y divide-border">
+              {/* ── MOBILE/TABLET: Card layout ── */}
+              <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
                 {orders.length === 0 ? (
                   <p className="p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد طلبات بعد" : "No orders yet"}</p>
                 ) : orders.map((order) => {
@@ -670,10 +670,10 @@ function AdminOrders() {
                       key={order.id}
                       id={`admin-order-${order.id}`}
                       data-order-id={order.id}
-                      className={`p-4 space-y-3 transition-all duration-500 ${
+                      className={`p-4 space-y-3 transition-all duration-500 rounded-xl border ${
                         highlightedOrderId === order.id
-                          ? "bg-primary/10 ring-2 ring-primary border border-primary shadow-lg rounded-xl"
-                          : ""
+                          ? "bg-primary/10 ring-2 ring-primary border-primary shadow-lg"
+                          : "border-border bg-secondary/20"
                       }`}
                     >
                       {/* Header row: name + status badge */}
@@ -846,7 +846,7 @@ function AdminOrders() {
               </div>
 
               {/* ── DESKTOP: Table layout ── */}
-              <table className="hidden md:table w-full min-w-[980px] text-start border-collapse">
+              <table className="hidden xl:table w-full min-w-[980px] text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
                     <th className="p-4 text-start">{ar ? "العميل" : "Customer"}</th>
@@ -1084,8 +1084,8 @@ function AdminOrders() {
             </div>
           ) : (
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              {/* ── MOBILE: Card layout ── */}
-              <div className="md:hidden divide-y divide-border">
+              {/* ── MOBILE/TABLET: Card layout ── */}
+              <div className="xl:hidden grid grid-cols-1 md:grid-cols-2 gap-3 p-3">
                 {returns.length === 0 ? (
                   <p className="p-6 text-center text-sm text-muted-foreground">{ar ? "لا توجد طلبات إرجاع" : "No return requests"}</p>
                 ) : returns.map((ret: any) => {
@@ -1115,10 +1115,10 @@ function AdminOrders() {
                       id={`admin-return-${ret.id}`}
                       data-return-id={ret.id}
                       data-order-id={ret.order_id}
-                      className={`p-4 space-y-3 transition-all duration-500 ${
+                      className={`p-4 space-y-3 transition-all duration-500 rounded-xl border ${
                         highlightedReturnId === ret.id || highlightedOrderId === ret.order_id || highlightedOrderId === ret.id
-                          ? "bg-primary/10 ring-2 ring-primary border border-primary shadow-lg rounded-xl"
-                          : ""
+                          ? "bg-primary/10 ring-2 ring-primary border-primary shadow-lg"
+                          : "border-border bg-secondary/20"
                       }`}
                     >
                       {/* Header: customer + status */}
@@ -1214,7 +1214,7 @@ function AdminOrders() {
               </div>
 
               {/* ── DESKTOP: Table layout ── */}
-              <table className="hidden md:table w-full min-w-[980px] text-start border-collapse">
+              <table className="hidden xl:table w-full min-w-[980px] text-start border-collapse">
                 <thead>
                   <tr className="bg-secondary/40 border-b border-border text-xs font-bold text-muted-foreground text-start">
                     <th className="p-4 text-start">{ar ? "العميل" : "Customer"}</th>

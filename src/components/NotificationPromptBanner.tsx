@@ -114,8 +114,8 @@ export function NotificationPromptBanner() {
   return (
     <div
       className={cn(
-        "fixed bottom-20 lg:bottom-6 z-50",
-        ar ? "left-4 lg:left-6" : "right-4 lg:right-6",
+        "fixed bottom-20 xl:bottom-6 z-50",
+        ar ? "left-4 xl:left-6" : "right-4 xl:right-6",
         "max-w-sm w-[calc(100%-2rem)] animate-in slide-in-from-bottom-4 fade-in duration-300"
       )}
     >

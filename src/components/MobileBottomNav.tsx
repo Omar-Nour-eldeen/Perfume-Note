@@ -53,7 +53,7 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <aside className="fixed bottom-0 inset-x-0 z-30 lg:hidden bg-background/95 backdrop-blur-md border-t border-border/50 shadow-sm pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 px-1">
+    <aside className="fixed bottom-0 inset-x-0 z-30 xl:hidden bg-background/95 backdrop-blur-md border-t border-border/50 shadow-sm pb-[max(0.25rem,env(safe-area-inset-bottom))] pt-1 px-1">
       <nav className="flex items-center justify-around h-12">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -103,12 +103,12 @@ export function MobileBottomNav() {
             </div>
           );
 
-          if (item.onClick) {
+          if ((item as any).onClick) {
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={item.onClick}
+                onClick={(item as any).onClick}
                 className="flex-1 flex flex-col items-center justify-center h-full group focus:outline-none"
               >
                 {content}

@@ -109,7 +109,7 @@ function ProductDetailPage() {
 
   return (
     <StoreLayout>
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-32 lg:pb-20 pt-24">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-32 xl:pb-20 pt-24">
 
         {/* Breadcrumb */}
         <div className="pt-6 mb-8 flex items-center gap-2 text-sm text-muted-foreground">
@@ -281,7 +281,7 @@ function ProductDetailPage() {
       <ProductReviews productId={product.id} />
 
       {/* ── Mobile Fixed Bottom Bar (Sits above MobileBottomNav) ── */}
-      <div className="fixed bottom-[56px] left-0 right-0 z-40 lg:hidden">
+      <div className="fixed bottom-[56px] left-0 right-0 z-40 xl:hidden">
         {/* Add to Cart Bar */}
         <div className="flex items-center gap-3 p-3.5 bg-card/95 backdrop-blur-md border-t border-border/60 shadow-lg">
           <div className="flex flex-col">

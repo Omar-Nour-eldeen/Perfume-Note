@@ -202,12 +202,12 @@ export function Navbar({ transparent = false }: NavbarProps) {
               src={siteAssets.logo}
               alt="Perfume Note"
               className={cn(
-                "h-9 w-9 md:h-10 md:w-10 rounded-full object-cover",
+                "h-9 w-9 xl:h-10 xl:w-10 rounded-full object-cover",
                 !isSolid && "ring-2 ring-white/30"
               )}
             />
             <span className={cn(
-              "text-sm md:text-base font-bold tracking-[0.2em] uppercase transition-colors",
+              "text-sm xl:text-base font-bold tracking-[0.2em] uppercase transition-colors",
               ar ? "font-['Tajawal'] tracking-normal" : "",
               isSolid ? "text-foreground" : "text-white drop-shadow-md"
             )}>
@@ -216,7 +216,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
           </Link>
 
           {/* Centered Navigation — Desktop */}
-          <nav className="hidden md:flex items-center gap-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <nav className="hidden xl:flex items-center gap-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             {navLinks.map(({ label, to }) => (
               <Link key={to} to={to} className={navLinkClass(to)}>
                 {label}
@@ -225,7 +225,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-4 md:gap-5 z-10">
+          <div className="flex items-center gap-4 xl:gap-5 z-10">
             <button
               onClick={() => setSearchOpen(true)}
               className={cn(
@@ -237,7 +237,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
               <Search className="w-[18px] h-[18px]" strokeWidth={1.5} />
             </button>
 
-            <div className="hidden md:block">
+            <div className="hidden xl:block">
               <InstallAppButton
                 variant="navbar"
                 className={cn(
@@ -249,7 +249,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
             <button
               onClick={toggleLanguage}
               className={cn(
-                "hidden md:block text-[11px] font-semibold tracking-widest transition-colors uppercase",
+                "hidden xl:block text-[11px] font-semibold tracking-widest transition-colors uppercase",
                 isSolid ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white"
               )}
             >
@@ -287,7 +287,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
 
             {/* Auth — Desktop */}
             {!loading && (
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden xl:flex items-center gap-2">
                 {user ? (
                   <Link
                     to="/account"
@@ -323,7 +323,7 @@ export function Navbar({ transparent = false }: NavbarProps) {
             <button
               onClick={toggleLanguage}
               className={cn(
-                "md:hidden text-[11px] font-semibold tracking-widest transition-colors uppercase",
+                "xl:hidden text-[11px] font-semibold tracking-widest transition-colors uppercase",
                 isSolid ? "text-muted-foreground hover:text-foreground" : "text-white/80 hover:text-white"
               )}
               aria-label={ar ? "Switch to English" : "تبديل إلى العربية"}
