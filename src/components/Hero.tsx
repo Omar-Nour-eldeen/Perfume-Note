@@ -43,7 +43,7 @@ export function Hero() {
   }, [emblaApi, onSelect]);
 
   return (
-    <section className="relative w-full h-[65vh] md:h-[85vh] min-h-[450px] md:min-h-[500px] bg-[#f8f5f0]">
+    <section className="relative w-full h-[65vh] xl:h-[85vh] min-h-[450px] xl:min-h-[500px] bg-[#f8f5f0]">
       {/* Carousel */}
       <div className="w-full h-full overflow-hidden" ref={emblaRef}>
         <div className="flex h-full">
@@ -53,12 +53,12 @@ export function Hero() {
               <div className="absolute inset-0 bg-black">
                 {/* Mobile + Tablet Image */}
                 <div
-                  className="absolute inset-0 lg:hidden bg-cover bg-no-repeat"
+                  className="absolute inset-0 xl:hidden bg-cover bg-no-repeat md:bg-center"
                   style={{ backgroundImage: `url('${slide.imageMobile}')` }}
                 />
                 {/* Desktop Image */}
                 <div
-                  className="hidden lg:block absolute inset-0 bg-cover bg-center"
+                  className="hidden xl:block absolute inset-0 bg-cover bg-center"
                   style={{ backgroundImage: `url('${slide.image}')` }}
                 />
                 {/* Gradient correctly aligned to the text side (start) to keep the hero image fully visible on the other side. Using black so white text is readable. */}
